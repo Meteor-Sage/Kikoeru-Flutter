@@ -7,6 +7,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'src/screens/launcher_screen.dart';
 import 'src/utils/theme.dart';
 import 'src/services/storage_service.dart';
+import 'src/services/account_database.dart';
 import 'src/providers/audio_provider.dart';
 import 'src/providers/video_provider.dart';
 
@@ -16,6 +17,9 @@ void main() async {
   // Initialize Hive for local storage
   await Hive.initFlutter();
   await StorageService.init();
+
+  // Initialize account database
+  await AccountDatabase.instance.database;
 
   // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(

@@ -80,6 +80,9 @@ class KikoeruApiService {
       }
     }
     _dio.options.baseUrl = _host!;
+
+    print(
+        '[API] Initialized - host: $_host, token: ${token.isEmpty ? "empty" : "exists (${token.length} chars)"}');
   }
 
   // Setters for configuration
@@ -193,14 +196,6 @@ class KikoeruApiService {
             'page': 1,
             'pageSize': 20,
           },
-          options: Options(
-            headers: {
-              'Origin':
-                  _host!.contains('asmr') ? 'https://www.asmr.one' : _host,
-              'Referer':
-                  _host!.contains('asmr') ? 'https://www.asmr.one' : _host,
-            },
-          ),
         );
 
         // Try to get recommender UUID from response
@@ -224,12 +219,6 @@ class KikoeruApiService {
           'password': password,
           'recommenderUuid': recommenderUuid,
         },
-        options: Options(
-          headers: {
-            'Origin': _host!.contains('asmr') ? 'https://www.asmr.one' : _host,
-            'Referer': _host!.contains('asmr') ? 'https://www.asmr.one' : _host,
-          },
-        ),
       );
 
       // If registration successful, extract and store token
@@ -299,13 +288,6 @@ class KikoeruApiService {
       final response = await _dio.post(
         '/api/recommender/popular',
         data: data,
-        options: Options(
-          headers: {
-            'Origin': _host!.contains('asmr') ? 'https://www.asmr.one' : _host,
-            'Referer':
-                _host!.contains('asmr') ? 'https://www.asmr.one/' : '$_host/',
-          },
-        ),
       );
       return response.data;
     } catch (e) {

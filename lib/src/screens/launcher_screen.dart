@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/auth_provider.dart';
-import 'user_switch_screen.dart';
+import 'login_screen.dart';
 import 'main_screen.dart';
 
 class LauncherScreen extends ConsumerStatefulWidget {
@@ -27,13 +27,15 @@ class _LauncherScreenState extends ConsumerState<LauncherScreen> {
 
     if (!mounted) return;
 
-    if (authState.currentUser != null) {
+    if (authState.currentUser != null && authState.isLoggedIn) {
+      // User is logged in, go to main screen
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const MainScreen()),
       );
     } else {
+      // Not logged in, go to login screen
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const UserSwitchScreen()),
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
       );
     }
   }

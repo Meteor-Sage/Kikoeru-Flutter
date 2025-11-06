@@ -6,7 +6,12 @@ import '../services/kikoeru_api_service.dart';
 import 'main_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  final bool isAddingAccount; // true when adding from account management
+
+  const LoginScreen({
+    super.key,
+    this.isAddingAccount = false,
+  });
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -63,10 +68,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
 
       if (success && mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const MainScreen()),
-          (route) => false, // Remove all previous routes
-        );
+        if (widget.isAddingAccount) {
+          // Adding account mode - just go back
+          Navigator.pop(context, true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('账户 "$username" 已添加')),
+          );
+        } else {
+          // Normal login - go to main screen
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const MainScreen()),
+            (route) => false, // Remove all previous routes
+          );
+        }
       } else if (mounted) {
         final error = ref.read(authProvider).error;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -101,8 +115,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isLogin ? '登录' : '注册'),
+        title: Text(widget.isAddingAccount
+            ? (_isLogin ? '添加账户' : '注册账户')
+            : (_isLogin ? '登录' : '注册')),
         centerTitle: true,
+        // Show back button in adding account mode
+        automaticallyImplyLeading: widget.isAddingAccount,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
