@@ -173,7 +173,7 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('已移除收藏'),
+              content: Text('已移除标记'),
               behavior: SnackBarBehavior.floating,
               duration: Duration(seconds: 2),
             ),
@@ -383,11 +383,11 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
                     ),
                   ],
                   const SizedBox(height: 4),
-                  if (widget.work.tags != null && widget.work.tags!.isNotEmpty)
-                    _buildTagsRow(context),
-                  const SizedBox(height: 2),
                   if (widget.work.vas != null && widget.work.vas!.isNotEmpty)
                     _buildVoiceActorsRow(context),
+                  const SizedBox(height: 2),
+                  if (widget.work.tags != null && widget.work.tags!.isNotEmpty)
+                    _buildTagsRow(context),
                   const SizedBox(height: 2),
                 ],
               ),
@@ -543,13 +543,13 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  // 标签
-                  if (widget.work.tags != null && widget.work.tags!.isNotEmpty)
-                    _buildTagsWrap(context),
-                  const SizedBox(height: 6),
                   // 声优
                   if (widget.work.vas != null && widget.work.vas!.isNotEmpty)
                     _buildVoiceActorsWrap(context),
+                  const SizedBox(height: 6),
+                  // 标签
+                  if (widget.work.tags != null && widget.work.tags!.isNotEmpty)
+                    _buildTagsWrap(context),
                 ],
               ),
             ],

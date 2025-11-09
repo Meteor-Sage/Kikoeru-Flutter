@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dynamic_color/dynamic_color.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 
 import 'src/screens/launcher_screen.dart';
 import 'src/utils/theme.dart';
@@ -13,8 +12,7 @@ import 'src/providers/audio_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Hive for local storage
-  await Hive.initFlutter();
+  // Initialize storage service
   await StorageService.init();
 
   // Initialize account database

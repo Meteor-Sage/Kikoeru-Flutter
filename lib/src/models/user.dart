@@ -1,40 +1,19 @@
-import 'package:hive/hive.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:equatable/equatable.dart';
 
 part 'user.g.dart';
 
-@HiveType(typeId: 0)
 @JsonSerializable()
 class User extends Equatable {
-  @HiveField(0)
   final int? id;
-
-  @HiveField(1)
   final String name;
-
-  @HiveField(2)
   final String? password;
-
-  @HiveField(3)
   final String? host;
-
-  @HiveField(4)
   final String? token;
-
-  @HiveField(5)
   final DateTime? lastUpdateTime;
-
-  @HiveField(6)
   final bool loggedIn;
-
-  @HiveField(7)
   final String? group;
-
-  @HiveField(8)
   final String? email;
-
-  @HiveField(9)
   final String? recommenderUuid;
 
   const User({

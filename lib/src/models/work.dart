@@ -36,6 +36,8 @@ class Work extends Equatable {
   @JsonKey(name: 'has_subtitle')
   final bool? hasSubtitle;
 
+  final int? duration; // 总时长(秒)
+
   final String?
       progress; // 收藏状态: marked, listening, listened, replay, postponed
 
@@ -58,6 +60,7 @@ class Work extends Equatable {
     this.rateCount,
     this.rateAverage,
     this.hasSubtitle,
+    this.duration,
     this.progress,
     this.images,
     this.description,
@@ -102,6 +105,7 @@ class Work extends Equatable {
         rateCount,
         rateAverage,
         hasSubtitle,
+        duration,
         progress,
         images,
         description,

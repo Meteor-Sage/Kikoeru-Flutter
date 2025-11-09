@@ -25,7 +25,6 @@ class WorkDetailScreen extends ConsumerStatefulWidget {
 
 class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
   Work? _detailedWork;
-  bool _isLoading = true;
   String? _errorMessage;
   bool _showHDImage = false; // 控制是否显示高清图片
   ImageProvider? _hdImageProvider; // 预加载的高清图片
@@ -90,7 +89,6 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
   Future<void> _loadWorkDetail() async {
     try {
       setState(() {
-        _isLoading = true;
         _errorMessage = null;
       });
 
@@ -102,12 +100,10 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
         _detailedWork = detailedWork;
         // 更新收藏状态（从详情API响应中获取最新状态）
         _currentProgress = detailedWork.progress;
-        _isLoading = false;
       });
     } catch (e) {
       setState(() {
         _errorMessage = '加载失败: $e';
-        _isLoading = false;
       });
     }
   }
@@ -224,7 +220,7 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('已移除收藏'),
+              content: Text('已移除标记'),
               duration: Duration(seconds: 2),
               behavior: SnackBarBehavior.floating,
             ),
@@ -251,7 +247,7 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
 
   // 获取状态标签
   String _getProgressLabel(String? progress) {
-    if (progress == null) return '未收藏';
+    if (progress == null) return '标记';
 
     final filter = [
       MyReviewFilter.marked,
@@ -267,10 +263,28 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
     return filter.label;
   }
 
+  // 获取状态对应的图标
+  IconData _getProgressIcon(String? progress) {
+    if (progress == null) return Icons.bookmark_border;
+
+    switch (progress) {
+      case 'marked':
+        return Icons.bookmark;
+      case 'listening':
+        return Icons.headphones;
+      case 'listened':
+        return Icons.check_circle;
+      case 'replay':
+        return Icons.replay;
+      case 'postponed':
+        return Icons.schedule;
+      default:
+        return Icons.bookmark;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final work = _detailedWork ?? widget.work;
-
     return GlobalAudioPlayerWrapper(
       child: Scaffold(
         appBar: AppBar(
@@ -288,29 +302,53 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           actions: [
-            // 收藏状态按钮
-            IconButton(
-              icon: _isUpdatingProgress
-                  ? SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Theme.of(context).colorScheme.primary,
+            // 收藏状态按钮 - 带图标和文字
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _isUpdatingProgress
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Center(
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
                       ),
                     )
-                  : Icon(
-                      _currentProgress != null
-                          ? Icons.bookmark
-                          : Icons.bookmark_border,
-                      color: _currentProgress != null
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
+                  : TextButton(
+                      onPressed: _showProgressDialog,
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _getProgressLabel(_currentProgress),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: _currentProgress != null
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            _getProgressIcon(_currentProgress),
+                            size: 22,
+                            color: _currentProgress != null
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ],
+                      ),
                     ),
-              tooltip: _currentProgress != null
-                  ? '当前状态: ${_getProgressLabel(_currentProgress)}'
-                  : '添加到收藏',
-              onPressed: _isUpdatingProgress ? null : _showProgressDialog,
             ),
           ],
         ),
@@ -400,13 +438,31 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                       children: [
                         TextSpan(text: work.title),
                         if (work.hasSubtitle == true)
-                          TextSpan(
-                            text: ' CC', // 前置一个空格，紧跟标题内联显示
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16, // 与标题字号一致，确保基线自然对齐
-                              letterSpacing: 0.2,
+                          WidgetSpan(
+                            alignment: PlaceholderAlignment.baseline,
+                            baseline: TextBaseline.alphabetic,
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 6),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'CC',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.1,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
                       ],
@@ -475,6 +531,22 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                       ),
                     ),
 
+                    // 时长信息
+                    if (work.duration != null && work.duration! > 0) ...[
+                      const SizedBox(width: 16),
+                      const Icon(Icons.access_time,
+                          color: Colors.blue, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        _formatDuration(work.duration!),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Colors.blue[700],
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                      ),
+                    ],
+
                     // 价格信息
                     if (work.price != null) ...[
                       const SizedBox(width: 16),
@@ -504,30 +576,63 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
 
                 const SizedBox(height: 16),
 
-                // 声优信息
-                if (work.vas != null && work.vas!.isNotEmpty) ...[
+                // 社团和声优信息
+                if ((work.name != null && work.name!.isNotEmpty) ||
+                    (work.vas != null && work.vas!.isNotEmpty)) ...[
                   Text(
-                    '声优',
+                    '社团 | 声优',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                         ),
                   ),
                   const SizedBox(height: 8),
+
+                  // 社团和声优放在同一行
                   Wrap(
                     spacing: 4,
                     runSpacing: 4,
-                    children: work.vas!.map((va) {
-                      return VaChip(
-                        va: va,
-                        fontSize: 12,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        borderRadius: 6,
-                        fontWeight: FontWeight.w500,
-                        onLongPress: () => _copyToClipboard(va.name, '声优'),
-                      );
-                    }).toList(),
+                    children: [
+                      // 社团名称标签
+                      if (work.name != null && work.name!.isNotEmpty)
+                        GestureDetector(
+                          onLongPress: () => _copyToClipboard(work.name!, '社团'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .secondaryContainer,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              work.name!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSecondaryContainer,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                      // 声优列表
+                      if (work.vas != null && work.vas!.isNotEmpty)
+                        ...work.vas!.map((va) {
+                          return VaChip(
+                            va: va,
+                            fontSize: 12,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            borderRadius: 6,
+                            fontWeight: FontWeight.w500,
+                            onLongPress: () => _copyToClipboard(va.name, '声优'),
+                          );
+                        }).toList(),
+                    ],
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -590,15 +695,8 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                 ),
                 const SizedBox(height: 8),
 
-                // 文件浏览器组件
-                Container(
-                  height: 400, // 设置固定高度
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: FileExplorerWidget(work: work),
-                ),
+                // 文件浏览器组件 - 移除固定高度，让它自由展开
+                FileExplorerWidget(work: work),
               ],
             ),
           ),
@@ -614,6 +712,19 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
       return '${(number / 1000).toStringAsFixed(1)}k';
     } else {
       return number.toString();
+    }
+  }
+
+  // 格式化时长(秒 -> 时:分:秒 或 分:秒)
+  String _formatDuration(int seconds) {
+    final hours = seconds ~/ 3600;
+    final minutes = (seconds % 3600) ~/ 60;
+    final secs = seconds % 60;
+
+    if (hours > 0) {
+      return '$hours:${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+    } else {
+      return '$minutes:${secs.toString().padLeft(2, '0')}';
     }
   }
 }

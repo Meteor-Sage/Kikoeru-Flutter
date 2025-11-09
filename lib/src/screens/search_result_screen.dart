@@ -421,6 +421,35 @@ class _SearchResultScreenState extends ConsumerState<SearchResultScreen> {
   Widget _buildPaginationBar(SearchResultState searchState) {
     final maxPage = _calculateTotalPages(searchState);
 
+    // 如果总数小于等于20，显示到底提示
+    if (searchState.totalCount <= 20) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.check_circle_outline,
+              size: 16,
+              color: Colors.grey.shade600,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '已经到底啦~杂库~',
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
       decoration: BoxDecoration(

@@ -494,8 +494,7 @@ class _SimpleSearchScreenState extends ConsumerState<SimpleSearchScreen> {
                                 // 过滤数据
                                 List<Map<String, dynamic>> filteredList;
                                 if (textEditingValue.text.trim().isEmpty) {
-                                  // 输入为空，显示前50个（已按count排序）
-                                  filteredList = sourceList.take(50).toList();
+                                  filteredList = sourceList.toList();
                                 } else {
                                   // 有输入，过滤匹配项
                                   final query = textEditingValue.text

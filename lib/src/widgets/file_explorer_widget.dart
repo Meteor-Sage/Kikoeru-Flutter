@@ -25,11 +25,11 @@ class FileExplorerWidget extends ConsumerStatefulWidget {
 }
 
 class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
-  List<dynamic> _currentFiles = [];
-  final List<List<dynamic>> _navigationHistory = [];
-  final List<String> _pathHistory = [];
+  List<dynamic> _rootFiles = [];
+  final Set<String> _expandedFolders = {}; // 记录展开的文件夹路径
   bool _isLoading = false;
   String? _errorMessage;
+  String? _mainFolderPath; // 主文件夹路径
 
   @override
   void initState() {
@@ -51,10 +51,10 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
       // 只在播放音频时才更新，避免浏览其他作品时影响当前播放的歌词
 
       setState(() {
-        _currentFiles = files;
-        _navigationHistory.clear(); // 清空导航历史
-        _pathHistory.clear(); // 清空路径历史
+        _rootFiles = files;
         _isLoading = false;
+        // 识别主文件夹并自动展开
+        _identifyAndExpandMainFolder();
       });
     } catch (e) {
       setState(() {
@@ -64,49 +64,132 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
     }
   }
 
-  void _navigateToFolder(dynamic folder) {
-    if (folder['children'] != null) {
-      setState(() {
-        _navigationHistory.add(List.from(_currentFiles));
-        _pathHistory.add(folder['title'] ?? folder['name'] ?? '未知');
-        _currentFiles = List<dynamic>.from(folder['children']);
-      });
+  // 识别主文件夹：音频数量最多的目录，如果有多个则选择文本文件最多的
+  void _identifyAndExpandMainFolder() {
+    if (_rootFiles.isEmpty) return;
+
+    // 如果根目录本身包含音频文件，则不需要展开
+    final rootHasAudio = _rootFiles.any((item) => item['type'] == 'audio');
+    if (rootHasAudio) {
+      _mainFolderPath = '';
+      return;
+    }
+
+    // 收集所有文件夹及其统计信息（使用LinkedHashMap保持顺序）
+    final Map<String, Map<String, dynamic>> folderStats = {};
+
+    void analyzeFolders(List<dynamic> items, String parentPath) {
+      for (final item in items) {
+        if (item['type'] == 'folder') {
+          final children = item['children'] as List<dynamic>?;
+          if (children != null && children.isNotEmpty) {
+            final itemPath = _getItemPath(parentPath, item);
+
+            // 统计该文件夹的音频和文本文件数量
+            final stats = _countFilesInFolder(children);
+            folderStats[itemPath] = {
+              'audioCount': stats['audioCount'],
+              'textCount': stats['textCount'],
+              'item': item,
+            };
+
+            // 递归分析子文件夹
+            analyzeFolders(children, itemPath);
+          }
+        }
+      }
+    }
+
+    analyzeFolders(_rootFiles, '');
+
+    if (folderStats.isEmpty) {
+      _mainFolderPath = null;
+      return;
+    }
+
+    // 找出音频数量最多的文件夹
+    int maxAudioCount = 0;
+    for (final stats in folderStats.values) {
+      if (stats['audioCount'] > maxAudioCount) {
+        maxAudioCount = stats['audioCount'];
+      }
+    }
+
+    // 在音频数量最多的文件夹中，选择文本文件最多的
+    // 如果文本数量相同，优先选择第一个遇到的（Map保持了插入顺序）
+    String? mainFolder;
+    int maxTextCount = -1;
+    for (final entry in folderStats.entries) {
+      if (entry.value['audioCount'] == maxAudioCount) {
+        final textCount = entry.value['textCount'] as int;
+        // 使用 > 而不是 >= 确保文本数量相同时选择第一个
+        if (textCount > maxTextCount) {
+          maxTextCount = textCount;
+          mainFolder = entry.key;
+        }
+      }
+    }
+
+    if (mainFolder != null) {
+      _mainFolderPath = mainFolder;
+      // 展开主文件夹路径上的所有父文件夹
+      _expandPathToFolder(mainFolder);
+      print(
+          '[FileExplorer] 识别到主文件夹: $_mainFolderPath (音频:$maxAudioCount, 文本:$maxTextCount)');
     }
   }
 
-  void _navigateBack() {
-    if (_navigationHistory.isNotEmpty) {
-      setState(() {
-        _currentFiles = _navigationHistory.removeLast();
-        _pathHistory.removeLast();
-      });
+  // 统计文件夹中的音频和文本文件数量（仅统计当前层级，不递归子文件夹）
+  Map<String, int> _countFilesInFolder(List<dynamic> items) {
+    int audioCount = 0;
+    int textCount = 0;
+
+    for (final child in items) {
+      if (child['type'] == 'audio') {
+        audioCount++;
+      } else if (_isTextFile(child)) {
+        textCount++;
+      }
+      // 不再递归统计子文件夹中的文件
+    }
+
+    return {'audioCount': audioCount, 'textCount': textCount};
+  }
+
+  // 展开到指定文件夹的路径
+  void _expandPathToFolder(String targetPath) {
+    // 将路径拆分，展开所有父级文件夹
+    final segments = targetPath.split('/');
+    String currentPath = '';
+
+    for (int i = 0; i < segments.length; i++) {
+      if (i == 0) {
+        currentPath = segments[i];
+      } else {
+        currentPath = '$currentPath/${segments[i]}';
+      }
+
+      if (!_expandedFolders.contains(currentPath)) {
+        _expandedFolders.add(currentPath);
+      }
     }
   }
 
-  String get _currentPath {
-    if (_pathHistory.isEmpty) {
-      return '/';
-    }
-    return '/${_pathHistory.join('/')}';
+  // 切换文件夹展开/折叠状态
+  void _toggleFolder(String path) {
+    setState(() {
+      if (_expandedFolders.contains(path)) {
+        _expandedFolders.remove(path);
+      } else {
+        _expandedFolders.add(path);
+      }
+    });
   }
 
-  // 获取简化后的路径显示（用于UI显示）
-  String get _displayPath {
-    if (_pathHistory.isEmpty) {
-      return '/';
-    }
-
-    // 如果路径层级少于等于3层，直接显示完整路径
-    if (_pathHistory.length <= 3) {
-      return '/${_pathHistory.join('/')}';
-    }
-
-    // 路径太长时，显示：/第一层/.../倒数第二层/最后一层
-    final first = _pathHistory.first;
-    final secondLast = _pathHistory[_pathHistory.length - 2];
-    final last = _pathHistory.last;
-
-    return '/$first/.../$secondLast/$last';
+  // 生成文件/文件夹的唯一路径
+  String _getItemPath(String parentPath, dynamic item) {
+    final title = item['title'] ?? item['name'] ?? 'unknown';
+    return parentPath.isEmpty ? title : '$parentPath/$title';
   }
 
   void _playAudioFile(dynamic audioFile) async {
@@ -232,7 +315,7 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
     );
   }
 
-  // 获取当前目录下所有音频文件
+  // 获取当前目录下所有音频文件（递归遍历整个树）
   List<dynamic> _getAudioFilesFromCurrentDirectory() {
     final List<dynamic> audioFiles = [];
 
@@ -246,8 +329,8 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
       }
     }
 
-    if (_currentFiles.isNotEmpty) {
-      extractAudioFiles(_currentFiles);
+    if (_rootFiles.isNotEmpty) {
+      extractAudioFiles(_rootFiles);
     }
 
     return audioFiles;
@@ -291,24 +374,6 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
     } else {
       return Colors.grey;
     }
-  }
-
-  String _getFileTypeText(dynamic file) {
-    final type = file['type'] ?? '';
-    final children = file['children'];
-
-    if (type == 'folder' && children != null) {
-      return '${(children as List).length} 项';
-    } else if (_isImageFile(file)) {
-      return '图片';
-    } else if (_isTextFile(file)) {
-      return '文本';
-    } else if (_isPdfFile(file)) {
-      return 'PDF文档';
-    } else if (type.isNotEmpty) {
-      return type.toUpperCase();
-    }
-    return '';
   }
 
   bool _isImageFile(dynamic file) {
@@ -576,7 +641,7 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
     );
   }
 
-  // 获取当前目录下所有图片文件
+  // 获取当前目录下所有图片文件（递归遍历整个树）
   List<dynamic> _getImageFilesFromCurrentDirectory() {
     final List<dynamic> imageFiles = [];
 
@@ -590,8 +655,8 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
       }
     }
 
-    if (_currentFiles.isNotEmpty) {
-      extractImageFiles(_currentFiles);
+    if (_rootFiles.isNotEmpty) {
+      extractImageFiles(_rootFiles);
     }
 
     return imageFiles;
@@ -763,50 +828,8 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 路径导航栏
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Row(
-            children: [
-              if (_navigationHistory.isNotEmpty)
-                IconButton(
-                  onPressed: _navigateBack,
-                  icon: const Icon(Icons.arrow_back),
-                  iconSize: 20,
-                ),
-              Expanded(
-                child: Text(
-                  _displayPath,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontFamily: 'monospace',
-                      ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-              ),
-              IconButton(
-                onPressed: _loadWorkTree,
-                icon: const Icon(Icons.refresh),
-                iconSize: 20,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-
-        // 文件列表
-        Expanded(
-          child: _buildFileList(),
-        ),
-      ],
-    );
+    // 直接返回文件列表，占满全宽
+    return _buildFileList();
   }
 
   Widget _buildFileList() {
@@ -838,7 +861,7 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
       );
     }
 
-    if (_currentFiles.isEmpty) {
+    if (_rootFiles.isEmpty) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -846,7 +869,7 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
             Icon(Icons.folder_open, size: 64, color: Colors.grey),
             SizedBox(height: 16),
             Text(
-              '此文件夹为空',
+              '没有文件',
               style: TextStyle(color: Colors.grey),
             ),
           ],
@@ -854,111 +877,167 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
       );
     }
 
-    return ListView.builder(
-      itemCount: _currentFiles.length,
-      itemBuilder: (context, index) {
-        final file = _currentFiles[index];
-        final type = file['type'] ?? '';
-        final title = file['title'] ?? file['name'] ?? '未知文件';
-        final isAudio = type == 'audio';
-        final isFolder = type == 'folder';
+    // 使用Column构建树形结构，可以自由展开
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: _buildFileTree(_rootFiles, ''),
+      ),
+    );
+  }
 
-        return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-          child: ListTile(
-            leading: Icon(
-              _getFileIcon(file),
-              color: _getFileIconColor(file),
-              size: 28,
+  // 递归构建文件树
+  List<Widget> _buildFileTree(List<dynamic> items, String parentPath,
+      {int level = 0}) {
+    final List<Widget> widgets = [];
+
+    for (final item in items) {
+      final type = item['type'] ?? '';
+      final title = item['title'] ?? item['name'] ?? '未知文件';
+      final isFolder = type == 'folder';
+      final children = item['children'] as List<dynamic>?;
+      final itemPath = _getItemPath(parentPath, item);
+      final isExpanded = _expandedFolders.contains(itemPath);
+
+      // 文件/文件夹项
+      widgets.add(
+        InkWell(
+          onTap: () {
+            if (isFolder) {
+              // 文件夹点击展开/折叠
+              _toggleFolder(itemPath);
+            } else {
+              // 文件点击处理
+              _handleFileTap(item, title);
+            }
+          },
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 8.0 + (level * 20.0), // 减少基础左边距，使用8px
+              right: 8.0, // 减少右边距为8px
+              top: 8.0,
+              bottom: 8.0,
             ),
-            title: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            subtitle: Text(
-              _getFileTypeText(file),
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
-            ),
-            trailing: isAudio
-                ? IconButton(
+            child: Row(
+              children: [
+                // 展开/折叠图标（仅文件夹）
+                if (isFolder)
+                  Icon(
+                    isExpanded
+                        ? Icons.keyboard_arrow_down
+                        : Icons.keyboard_arrow_right,
+                    size: 20,
+                  )
+                else
+                  const SizedBox(width: 20),
+                const SizedBox(width: 8),
+                // 文件图标
+                Icon(
+                  _getFileIcon(item),
+                  color: _getFileIconColor(item),
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                // 文件名
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ),
+                // 操作按钮
+                if (type == 'audio')
+                  IconButton(
                     onPressed: () {
-                      if (_isVideoFile(file)) {
-                        // 视频文件使用系统播放器
-                        _playVideoWithSystemPlayer(file);
+                      if (_isVideoFile(item)) {
+                        _playVideoWithSystemPlayer(item);
                       } else {
-                        // 音频文件使用内置播放器
-                        _playAudioFile(file);
+                        _playAudioFile(item);
                       }
                     },
-                    icon: Icon(_isVideoFile(file)
+                    icon: Icon(_isVideoFile(item)
                         ? Icons.video_library
                         : Icons.play_arrow),
-                    color: _isVideoFile(file) ? Colors.blue : Colors.green,
+                    color: _isVideoFile(item) ? Colors.blue : Colors.green,
+                    iconSize: 20,
                   )
-                : (_isImageFile(file) || _isTextFile(file) || _isPdfFile(file))
-                    ? Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // 如果是字幕文件，显示加载字幕按钮
-                          if (_isTextFile(file) && _isLyricFile(file))
-                            IconButton(
-                              onPressed: () => _loadLyricManually(file),
-                              icon: const Icon(Icons.subtitles),
-                              color: Colors.orange,
-                              tooltip: '加载为字幕',
-                            ),
-                          // 预览按钮
-                          IconButton(
-                            onPressed: () {
-                              if (_isImageFile(file)) {
-                                _previewImageFile(file);
-                              } else if (_isPdfFile(file)) {
-                                _previewPdfFile(file);
-                              } else {
-                                _previewTextFile(file);
-                              }
-                            },
-                            icon: const Icon(Icons.visibility),
-                            color: Colors.blue,
-                            tooltip: '预览',
-                          ),
-                        ],
-                      )
-                    : null,
-            onTap: () {
-              if (isFolder) {
-                _navigateToFolder(file);
-              } else if (_isVideoFile(file)) {
-                // 视频文件使用系统播放器
-                _playVideoWithSystemPlayer(file);
-              } else if (isAudio) {
-                _playAudioFile(file);
-              } else if (_isImageFile(file)) {
-                _previewImageFile(file);
-              } else if (_isPdfFile(file)) {
-                _previewPdfFile(file);
-              } else if (_isTextFile(file)) {
-                _previewTextFile(file);
-              } else {
-                // 其他文件类型的处理
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('暂不支持打开此类型文件: $title'),
-                    duration: const Duration(seconds: 2),
+                else if (_isImageFile(item) ||
+                    _isTextFile(item) ||
+                    _isPdfFile(item))
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_isTextFile(item) && _isLyricFile(item))
+                        IconButton(
+                          onPressed: () => _loadLyricManually(item),
+                          icon: const Icon(Icons.subtitles),
+                          color: Colors.orange,
+                          tooltip: '加载为字幕',
+                          iconSize: 20,
+                        ),
+                      IconButton(
+                        onPressed: () {
+                          if (_isImageFile(item)) {
+                            _previewImageFile(item);
+                          } else if (_isPdfFile(item)) {
+                            _previewPdfFile(item);
+                          } else {
+                            _previewTextFile(item);
+                          }
+                        },
+                        icon: const Icon(Icons.visibility),
+                        color: Colors.blue,
+                        tooltip: '预览',
+                        iconSize: 20,
+                      ),
+                    ],
+                  )
+                else if (isFolder && children != null)
+                  Text(
+                    '${children.length} 项',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
                   ),
-                );
-              }
-            },
+              ],
+            ),
           ),
-        );
-      },
-    );
+        ),
+      );
+
+      // 如果是展开的文件夹，递归显示子项
+      if (isFolder && isExpanded && children != null && children.isNotEmpty) {
+        widgets.addAll(_buildFileTree(children, itemPath, level: level + 1));
+      }
+    }
+
+    return widgets;
+  }
+
+  // 处理文件点击
+  void _handleFileTap(dynamic file, String title) {
+    if (_isVideoFile(file)) {
+      _playVideoWithSystemPlayer(file);
+    } else if (file['type'] == 'audio') {
+      _playAudioFile(file);
+    } else if (_isImageFile(file)) {
+      _previewImageFile(file);
+    } else if (_isPdfFile(file)) {
+      _previewPdfFile(file);
+    } else if (_isTextFile(file)) {
+      _previewTextFile(file);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('暂不支持打开此类型文件: $title'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 }
 
