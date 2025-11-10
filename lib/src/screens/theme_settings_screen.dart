@@ -11,9 +11,7 @@ class ThemeSettingsScreen extends ConsumerWidget {
     final themeSettings = ref.watch(themeSettingsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('主题设置'),
-      ),
+      appBar: AppBar(title: const Text('主题设置', style: TextStyle(fontSize: 18))),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

@@ -81,7 +81,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
                 const Divider(),
                 ListTile(
                   leading: const Icon(Icons.storage),
-                  title: const Text('缓存管理'),
+                  title: const Text('缓存管理', style: TextStyle(fontSize: 18)),
                   subtitle: Text('当前缓存: $_cacheSize'),
                   trailing: const Icon(Icons.arrow_forward_ios),
                   onTap: () {
