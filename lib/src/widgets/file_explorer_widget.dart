@@ -14,6 +14,7 @@ import '../providers/lyric_provider.dart';
 import '../services/cache_service.dart';
 import '../services/download_service.dart';
 import '../utils/file_icon_utils.dart';
+import 'responsive_dialog.dart';
 
 class FileExplorerWidget extends ConsumerStatefulWidget {
   final Work work;
@@ -426,62 +427,64 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
     // 二次确认对话框
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => ResponsiveAlertDialog(
         title: const Text('加载字幕'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('确定要将以下文件加载为当前音频的字幕吗？'),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(4),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('确定要将以下文件加载为当前音频的字幕吗？'),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '字幕文件：',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '当前音频：',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    Text(
+                      currentTrack.title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '字幕文件：',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '当前音频：',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  Text(
-                    currentTrack.title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 8),
+              Text(
+                '注意：切换到其他音频时，字幕将自动恢复为默认匹配方式。',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '注意：切换到其他音频时，字幕将自动恢复为默认匹配方式。',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -760,23 +763,25 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
           // 提供复制链接的选项
           showDialog(
             context: context,
-            builder: (context) => AlertDialog(
+            builder: (context) => ResponsiveAlertDialog(
               title: const Text('无法直接播放'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('系统无法找到支持的视频播放器。'),
-                  const SizedBox(height: 12),
-                  const Text('您可以：'),
-                  const Text('1. 复制链接到外部播放器（如MX Player、VLC）'),
-                  const Text('2. 在浏览器中打开'),
-                  const SizedBox(height: 12),
-                  SelectableText(
-                    videoUrl,
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ],
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('系统无法找到支持的视频播放器。'),
+                    const SizedBox(height: 12),
+                    const Text('您可以：'),
+                    const Text('1. 复制链接到外部播放器（如MX Player、VLC）'),
+                    const Text('2. 在浏览器中打开'),
+                    const SizedBox(height: 12),
+                    SelectableText(
+                      videoUrl,
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -1131,184 +1136,280 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          '${_currentIndex + 1}/${widget.images.length} - ${widget.images[_currentIndex]['title']}',
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    final currentImage = widget.images[_currentIndex];
+    final title = currentImage['title'] ?? '';
+    final pageLabel = '${_currentIndex + 1}/${widget.images.length}';
+
+    final imageArea = _buildImagePageView(isLandscape);
+
+    if (isLandscape) {
+      // Landscape favors immersive viewing, so controls float above the image.
+      return Scaffold(
+        backgroundColor: Colors.black,
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          backgroundColor: Colors.black.withOpacity(0.4),
+          elevation: 0,
+          foregroundColor: Colors.white,
+          title: Text(pageLabel),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.of(context).maybePop(),
+            ),
+          ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.download),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('下载功能开发中...'),
-                  duration: Duration(seconds: 2),
+        body: SafeArea(
+          child: Stack(
+            children: [
+              Positioned.fill(child: imageArea),
+              if (title.isNotEmpty)
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 24,
+                  child: _buildTitleBadge(title),
                 ),
-              );
-            },
+            ],
           ),
-        ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        foregroundColor: Colors.white,
+        titleSpacing: 16,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(pageLabel, style: const TextStyle(fontSize: 16)),
+            if (title.isNotEmpty)
+              Text(
+                title,
+                style: const TextStyle(fontSize: 12),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+          ],
+        ),
       ),
       body: Column(
         children: [
-          // Main image viewer
           Expanded(
-            child: Listener(
-              onPointerDown: (_) {
-                setState(() {
-                  _pointerCount++;
-                });
-              },
-              onPointerUp: (_) {
-                setState(() {
-                  _pointerCount--;
-                  if (_pointerCount < 0) _pointerCount = 0;
-                });
-              },
-              onPointerCancel: (_) {
-                setState(() {
-                  _pointerCount--;
-                  if (_pointerCount < 0) _pointerCount = 0;
-                });
-              },
-              child: PageView.builder(
-                controller: _pageController,
-                itemCount: widget.images.length,
-                // 当有多个手指触摸或图片已放大时，禁用滑动
-                physics: _pointerCount > 1 || _isScaled
-                    ? const NeverScrollableScrollPhysics()
-                    : const BouncingScrollPhysics(),
-                onPageChanged: (index) {
-                  setState(() {
-                    _currentIndex = index;
-                  });
-                },
-                itemBuilder: (context, index) {
-                  final transformController = _getTransformController(index);
-                  return GestureDetector(
-                    onDoubleTap: () => _handleDoubleTap(index),
-                    child: InteractiveViewer(
-                      transformationController: transformController,
-                      minScale: 0.5,
-                      maxScale: 4.0,
-                      panEnabled: true,
-                      scaleEnabled: true,
-                      onInteractionStart: (details) {
-                        // 检测是否开始缩放
-                        if (details.pointerCount > 1) {
-                          setState(() {
-                            _isScaled = true;
-                          });
-                        }
-                      },
-                      onInteractionUpdate: (details) {
-                        // 实时检测缩放状态
-                        final scale =
-                            transformController.value.getMaxScaleOnAxis();
-                        final shouldBeScaled = scale > 1.01;
-                        if (_isScaled != shouldBeScaled) {
-                          setState(() {
-                            _isScaled = shouldBeScaled;
-                          });
-                        }
-                      },
-                      onInteractionEnd: (details) {
-                        // 交互结束后检查缩放状态
-                        final scale =
-                            transformController.value.getMaxScaleOnAxis();
-                        setState(() {
-                          _isScaled = scale > 1.01;
-                        });
-                      },
-                      child: Center(
-                        child: _CachedNetworkImage(
-                          imageUrl: widget.images[index]['url']!,
-                          hash: widget.images[index]['hash'] ?? '',
-                          workId: widget.workId,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-          // Thumbnail strip
-          Container(
-            height: 100,
-            color: Colors.black87,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: widget.images.length,
-              itemBuilder: (context, index) {
-                final isSelected = index == _currentIndex;
-                return GestureDetector(
-                  onTap: () {
-                    _pageController.animateToPage(
-                      index,
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                    );
-                  },
-                  child: Container(
-                    width: 80,
-                    margin: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: isSelected ? Colors.blue : Colors.transparent,
-                        width: 3,
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(5),
-                          child: SizedBox(
-                            width: 80,
-                            height: 100,
-                            child: _CachedNetworkImage(
-                              imageUrl: widget.images[index]['url']!,
-                              hash: widget.images[index]['hash'] ?? '',
-                              workId: widget.workId,
-                              fit: BoxFit.cover, // 缩略图使用cover模式
-                            ),
-                          ),
-                        ),
-                        // 序号标签
-                        Positioned(
-                          bottom: 4,
-                          right: 4,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black87,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              '${index + 1}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+            child: Stack(
+              children: [
+                Positioned.fill(child: imageArea),
+                if (title.isNotEmpty)
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: 16,
+                    child: _buildTitleBadge(title),
                   ),
-                );
-              },
+              ],
             ),
           ),
+          _buildThumbnailStrip(),
         ],
       ),
     );
+  }
+
+  Widget _buildImagePageView(bool isLandscape) {
+    return Listener(
+      onPointerDown: (_) => _updatePointerCount(increment: true),
+      onPointerUp: (_) => _updatePointerCount(increment: false),
+      onPointerCancel: (_) => _resetPointerCount(),
+      child: PageView.builder(
+        controller: _pageController,
+        itemCount: widget.images.length,
+        onPageChanged: (index) {
+          setState(() {
+            _currentIndex = index;
+            _isScaled = false;
+            _pointerCount = 0;
+          });
+          _resetAllTransformations();
+        },
+        physics: _isScaled || _pointerCount > 1
+            ? const NeverScrollableScrollPhysics()
+            : const PageScrollPhysics(),
+        itemBuilder: (context, index) {
+          final image = widget.images[index];
+          final controller = _getTransformController(index);
+
+          return GestureDetector(
+            onDoubleTap: () => _handleDoubleTap(index),
+            child: InteractiveViewer(
+              clipBehavior: Clip.none,
+              transformationController: controller,
+              minScale: 1.0,
+              maxScale: 4.0,
+              onInteractionEnd: (_) {
+                final maxScale = controller.value.getMaxScaleOnAxis();
+                setState(() {
+                  _isScaled = maxScale > 1.01;
+                });
+              },
+              child: Container(
+                color: Colors.black,
+                alignment: Alignment.center,
+                child: _CachedNetworkImage(
+                  imageUrl: image['url'] ?? '',
+                  hash: image['hash'] ?? '',
+                  workId: widget.workId,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildThumbnailStrip() {
+    return Container(
+      height: 140,
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: const BoxDecoration(
+        color: Colors.black,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black54,
+            offset: Offset(0, -2),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: widget.images.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final isSelected = index == _currentIndex;
+
+          return GestureDetector(
+            onTap: () => _jumpToImage(index),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              width: 90,
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: isSelected
+                      ? Theme.of(context).colorScheme.primary
+                      : Colors.transparent,
+                  width: 3,
+                ),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(7),
+                    child: _CachedNetworkImage(
+                      imageUrl: widget.images[index]['url'] ?? '',
+                      hash: widget.images[index]['hash'] ?? '',
+                      workId: widget.workId,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 4,
+                    right: 4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black87,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '${index + 1}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildTitleBadge(String title) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.55),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        title,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+        ),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  void _jumpToImage(int index) {
+    if (index == _currentIndex) {
+      return;
+    }
+    _resetAllTransformations();
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _resetAllTransformations() {
+    for (final controller in _transformControllers.values) {
+      controller.value = Matrix4.identity();
+    }
+  }
+
+  void _updatePointerCount({required bool increment}) {
+    setState(() {
+      if (increment) {
+        _pointerCount += 1;
+      } else {
+        _pointerCount = _pointerCount > 0 ? _pointerCount - 1 : 0;
+      }
+    });
+  }
+
+  void _resetPointerCount() {
+    if (_pointerCount == 0) {
+      return;
+    }
+    setState(() {
+      _pointerCount = 0;
+    });
   }
 }
 

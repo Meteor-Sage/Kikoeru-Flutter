@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/user.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/responsive_dialog.dart';
 import 'main_screen.dart';
 import 'login_screen.dart';
 
@@ -53,7 +54,7 @@ class _UserSwitchScreenState extends ConsumerState<UserSwitchScreen> {
   void _showDeleteConfirmation(User user) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => ResponsiveAlertDialog(
         title: const Text('删除账户'),
         content: Text('确定要删除账户 "${user.name}" 吗？'),
         actions: [

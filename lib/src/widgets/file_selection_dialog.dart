@@ -20,14 +20,12 @@ class _FileSelectionDialogState extends State<FileSelectionDialog> {
   final Map<String, bool> _selectedFiles = {}; // hash -> selected
   final Map<String, bool> _downloadedFiles = {}; // hash -> downloaded
   final Set<String> _expandedFolders = {}; // 展开的文件夹路径
-  String? _mainFolderPath; // 主文件夹路径
   bool _isCheckingDownloads = true;
 
   @override
   void initState() {
     super.initState();
     _initializeSelection();
-    _identifyAndExpandMainFolder();
     _checkDownloadedFiles();
   }
 
@@ -65,83 +63,6 @@ class _FileSelectionDialogState extends State<FileSelectionDialog> {
       setState(() {
         _isCheckingDownloads = false;
       });
-    }
-  }
-
-  // 识别主文件夹并自动展开
-  void _identifyAndExpandMainFolder() {
-    if (widget.work.children == null || widget.work.children!.isEmpty) {
-      return;
-    }
-
-    // 检查根目录是否包含音频文件
-    final rootHasAudio =
-        widget.work.children!.any((item) => item.type == 'file');
-    if (rootHasAudio) {
-      _mainFolderPath = '';
-      return;
-    }
-
-    // 统计各文件夹的音频数量
-    final Map<String, Map<String, int>> folderStats = {};
-
-    void analyzeFolders(List<AudioFile> items, String parentPath) {
-      for (final item in items) {
-        if (item.type == 'folder' && item.children != null) {
-          final folderPath = _getItemPath(parentPath, item);
-          final stats = _countFilesInFolder(item.children!);
-          folderStats[folderPath] = stats;
-          analyzeFolders(item.children!, folderPath);
-        }
-      }
-    }
-
-    analyzeFolders(widget.work.children!, '');
-
-    if (folderStats.isEmpty) {
-      return;
-    }
-
-    // 找出音频数量最多的文件夹
-    int maxAudioCount = 0;
-    String? mainFolder;
-
-    for (final entry in folderStats.entries) {
-      if (entry.value['audioCount']! > maxAudioCount) {
-        maxAudioCount = entry.value['audioCount']!;
-        mainFolder = entry.key;
-      }
-    }
-
-    if (mainFolder != null) {
-      _mainFolderPath = mainFolder;
-      _expandPathToFolder(mainFolder);
-    }
-  }
-
-  // 统计文件夹中的音频文件数量
-  Map<String, int> _countFilesInFolder(List<AudioFile> items) {
-    int audioCount = 0;
-    for (final child in items) {
-      if (child.type == 'file') {
-        audioCount++;
-      }
-    }
-    return {'audioCount': audioCount};
-  }
-
-  // 展开到指定文件夹的路径
-  void _expandPathToFolder(String targetPath) {
-    final segments = targetPath.split('/');
-    String currentPath = '';
-
-    for (int i = 0; i < segments.length; i++) {
-      if (i == 0) {
-        currentPath = segments[i];
-      } else {
-        currentPath = '$currentPath/${segments[i]}';
-      }
-      _expandedFolders.add(currentPath);
     }
   }
 
@@ -325,7 +246,147 @@ class _FileSelectionDialogState extends State<FileSelectionDialog> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
+    if (isLandscape) {
+      // 横屏模式：紧凑布局，最大化文件列表空间
+      return Dialog(
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
+            maxWidth: MediaQuery.of(context).size.width * 0.75,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 紧凑标题栏：整合所有控制项
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(28),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.download,
+                      color: theme.colorScheme.onPrimaryContainer,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            widget.work.title,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (!_isCheckingDownloads) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              '已下载 ${_downloadedFiles.values.where((v) => v).length} · 已选择 ${_selectedFiles.values.where((v) => v).length}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onPrimaryContainer
+                                    .withAlpha(179),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    // 全选按钮
+                    TextButton.icon(
+                      icon: Icon(
+                        Icons.select_all,
+                        size: 16,
+                        color: theme.colorScheme.onPrimaryContainer,
+                      ),
+                      label: Text(
+                        '全选',
+                        style: TextStyle(
+                          color: theme.colorScheme.onPrimaryContainer,
+                        ),
+                      ),
+                      onPressed: _toggleSelectAll,
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // 下载按钮
+                    FilledButton.icon(
+                      onPressed: _startDownload,
+                      icon: const Icon(Icons.download, size: 16),
+                      label: Text('下载 (${_getSelectedFiles().length})'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: theme.colorScheme.onPrimaryContainer,
+                        foregroundColor: theme.colorScheme.primaryContainer,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // 关闭按钮
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () => Navigator.of(context).pop(),
+                      color: theme.colorScheme.onPrimaryContainer,
+                      padding: const EdgeInsets.all(8),
+                      constraints: const BoxConstraints(),
+                      tooltip: '关闭',
+                    ),
+                  ],
+                ),
+              ),
+
+              const Divider(height: 1),
+
+              // 文件列表：最大化显示空间
+              Flexible(
+                child: _isCheckingDownloads
+                    ? const Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text('正在检查已下载文件...'),
+                          ],
+                        ),
+                      )
+                    : widget.work.children == null ||
+                            widget.work.children!.isEmpty
+                        ? const Center(
+                            child: Text('没有可下载的文件'),
+                          )
+                        : ListView(
+                            children:
+                                _buildFileTree(widget.work.children!, 0, ''),
+                          ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // 竖屏模式：保持原有布局
     return Dialog(
       child: Container(
         constraints: BoxConstraints(

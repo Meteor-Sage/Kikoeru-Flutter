@@ -59,6 +59,82 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
+    if (isLandscape) {
+      // 横屏布局：使用 NavigationRail
+      return Scaffold(
+        body: Row(
+          children: [
+            // 侧边导航栏 - 添加 SingleChildScrollView 避免键盘弹出时像素重叠
+            SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: MediaQuery.of(context).size.height,
+                ),
+                child: IntrinsicHeight(
+                  child: NavigationRail(
+                    selectedIndex: _currentIndex,
+                    onDestinationSelected: (index) {
+                      setState(() {
+                        _currentIndex = index;
+                      });
+                    },
+                    labelType: NavigationRailLabelType.selected,
+                    destinations: _destinations
+                        .map((dest) => NavigationRailDestination(
+                              icon: dest.icon,
+                              selectedIcon: dest.selectedIcon,
+                              label: Text(dest.label),
+                            ))
+                        .toList(),
+                  ),
+                ),
+              ),
+            ),
+            const VerticalDivider(thickness: 1, width: 1),
+            // 主内容区域
+            Expanded(
+              child: Column(
+                children: [
+                  // 主内容
+                  Expanded(
+                    child: PageStorage(
+                      bucket: _bucket,
+                      child: IndexedStack(
+                        index: _currentIndex,
+                        children: List.generate(_screens.length, (index) {
+                          return HeroMode(
+                            enabled: index == _currentIndex,
+                            child: _screens[index],
+                          );
+                        }),
+                      ),
+                    ),
+                  ),
+                  // MiniPlayer
+                  Consumer(
+                    builder: (context, ref, child) {
+                      final currentTrack = ref.watch(currentTrackProvider);
+                      return currentTrack.when(
+                        data: (track) => track != null
+                            ? const MiniPlayer()
+                            : const SizedBox.shrink(),
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, __) => const SizedBox.shrink(),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // 竖屏布局：使用 BottomNavigationBar
     return Scaffold(
       body: PageStorage(
         bucket: _bucket,

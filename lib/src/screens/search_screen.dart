@@ -248,6 +248,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context); // 必须调用以保持状态
+    final theme = Theme.of(context);
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
     return GestureDetector(
       // 点击任何地方（包括 AppBar）都取消焦点，关闭下拉框
       onTap: () {
@@ -286,458 +289,495 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
           ],
         ),
         resizeToAvoidBottomInset: true, // 自动调整以避免键盘遮挡
-        body: SingleChildScrollView(
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            color: Theme.of(context).colorScheme.surface,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 已添加的搜索条件
-                if (_searchConditions.isNotEmpty) ...[
-                  Text(
-                    '搜索条件',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  const SizedBox(height: 6),
-                  SizedBox(
-                    height: 40,
-                    child: ListView.builder(
-                      controller: _conditionsScrollController,
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _searchConditions.length,
-                      itemBuilder: (context, index) {
-                        final condition = _searchConditions[index];
-                        // 显示值，RJ号需要添加RJ前缀
-                        final displayValue =
-                            condition.type == SearchType.rjNumber
-                                ? 'RJ${condition.value}'
-                                : condition.value;
-
-                        return Padding(
-                          padding: EdgeInsets.only(
-                            right:
-                                index == _searchConditions.length - 1 ? 0 : 6,
-                          ),
-                          child: Chip(
-                            avatar: Icon(
-                              condition.isExclude
-                                  ? Icons.remove_circle_outline
-                                  : _getSearchTypeIcon(condition.type),
-                              size: 16,
-                            ),
-                            label: Text(
-                              '${condition.type.label}: $displayValue',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            backgroundColor: condition.isExclude
-                                ? Theme.of(context).colorScheme.errorContainer
-                                : Theme.of(context)
-                                    .colorScheme
-                                    .secondaryContainer,
-                            onDeleted: () =>
-                                _removeSearchCondition(condition.id),
-                            deleteIcon: const Icon(Icons.close, size: 16),
-                            side: BorderSide.none,
-                            materialTapTargetSize:
-                                MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: VisualDensity.compact,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            labelPadding:
-                                const EdgeInsets.only(left: 4, right: 2),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-
-                // 搜索类型选择
-                Text(
-                  '添加搜索条件',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: 8),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                      children: SearchType.values.map((type) {
-                    final supportsExclude = type == SearchType.tag ||
-                        type == SearchType.va ||
-                        type == SearchType.circle;
-                    final isCurrentType = _currentSearchType == type;
-
-                    // 从主题中取按钮文字样式，保证字体大小和粗细一致
-                    final buttonTextStyle =
-                        Theme.of(context).textTheme.labelLarge!;
-
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: Theme(
-                        data: Theme.of(context).copyWith(useMaterial3: false),
-                        child: ChoiceChip(
-                          avatar:
-                              isCurrentType && _isExcludeMode && supportsExclude
-                                  ? Icon(
-                                      Icons.remove_circle_outline,
-                                      size: 18,
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onErrorContainer,
-                                    )
-                                  : null,
-                          label: Text(type.label),
-                          selected: isCurrentType,
-                          showCheckmark: !(isCurrentType &&
-                              _isExcludeMode &&
-                              supportsExclude),
-                          selectedColor:
-                              isCurrentType && _isExcludeMode && supportsExclude
-                                  ? Theme.of(context).colorScheme.errorContainer
-                                  : Theme.of(context).colorScheme.primary,
-                          labelStyle: buttonTextStyle.copyWith(
-                            color: isCurrentType
-                                ? (isCurrentType &&
-                                        _isExcludeMode &&
-                                        supportsExclude
-                                    ? Theme.of(context)
-                                        .colorScheme
-                                        .onErrorContainer
-                                    : Theme.of(context).colorScheme.onPrimary)
-                                : Theme.of(context).colorScheme.onSurface,
-                          ),
-                          checkmarkColor:
-                              Theme.of(context).colorScheme.onPrimary,
-                          onSelected: (selected) {
-                            setState(() {
-                              if (isCurrentType && supportsExclude) {
-                                _isExcludeMode = !_isExcludeMode;
-                              } else {
-                                _currentSearchType = type;
-                                _isExcludeMode = false;
-                                _searchController.clear();
-                                _autocompleteKey = UniqueKey();
-                                if (supportsExclude) {
-                                  _loadSuggestions();
-                                }
-                              }
-                            });
-                          },
-                        ),
-                      ),
-                    );
-                  }).toList()),
-                ),
-                // 提示信息
-                if (_currentSearchType == SearchType.tag ||
-                    _currentSearchType == SearchType.va ||
-                    _currentSearchType == SearchType.circle)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _isExcludeMode
-                              ? Icons.remove_circle_outline
-                              : Icons.info_outline,
-                          size: 14,
-                          color: _isExcludeMode
-                              ? Theme.of(context).colorScheme.error
-                              : Theme.of(context).colorScheme.primary,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            _isExcludeMode
-                                ? '当前为排除模式：将排除包含该${_currentSearchType.label}的作品'
-                                : '提示：再次点击"${_currentSearchType.label}"可切换为排除模式',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _isExcludeMode
-                                  ? Theme.of(context).colorScheme.error
-                                  : Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                const SizedBox(height: 12),
-
-                // 搜索输入框和添加按钮
-                Row(
+        body: isLandscape
+            ? Container(
+                color: theme.colorScheme.surface,
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (_showAdvancedFilters)
+                      _buildAdvancedFiltersSidebar(theme),
                     Expanded(
-                      child: (_currentSearchType == SearchType.tag ||
-                              _currentSearchType == SearchType.va ||
-                              _currentSearchType == SearchType.circle)
-                          ? Autocomplete<String>(
-                              key: _autocompleteKey, // 使用 key 强制刷新
-                              optionsBuilder:
-                                  (TextEditingValue textEditingValue) {
-                                // 获取数据源
-                                List<Map<String, dynamic>> sourceList;
-                                switch (_currentSearchType) {
-                                  case SearchType.tag:
-                                    sourceList = _allTags;
-                                    break;
-                                  case SearchType.va:
-                                    sourceList = _allVas;
-                                    break;
-                                  case SearchType.circle:
-                                    sourceList = _allCircles;
-                                    break;
-                                  default:
-                                    sourceList = [];
-                                }
-
-                                // 过滤数据
-                                List<Map<String, dynamic>> filteredList;
-                                if (textEditingValue.text.trim().isEmpty) {
-                                  filteredList = sourceList.toList();
-                                } else {
-                                  // 有输入，过滤匹配项
-                                  final query = textEditingValue.text
-                                      .trim()
-                                      .toLowerCase();
-                                  filteredList = sourceList.where((item) {
-                                    final name =
-                                        (item['name'] ?? item['title'] ?? '')
-                                            .toString();
-                                    return name.toLowerCase().contains(query);
-                                  }).toList();
-                                }
-
-                                // 格式化显示：名称 (count)
-                                return filteredList.map((item) {
-                                  final name =
-                                      (item['name'] ?? item['title'] ?? '')
-                                          .toString();
-                                  final count = item['count'] ?? 0;
-                                  return '$name ($count)';
-                                });
-                              },
-                              optionsMaxHeight: 300, // 设置下拉列表最大高度，可滚动
-                              onSelected: (String selection) {
-                                // 从 "名称 (count)" 中提取名称部分
-                                final name = selection.substring(
-                                    0, selection.lastIndexOf(' ('));
-                                _searchController.text = name;
-                                _addSearchCondition();
-                              },
-                              fieldViewBuilder: (context, controller, focusNode,
-                                  onSubmitted) {
-                                // 保存 focusNode 引用以便外部控制
-                                _searchFocusNode = focusNode;
-                                // 同步控制器内容
-                                controller.text = _searchController.text;
-                                controller.addListener(() {
-                                  _searchController.text = controller.text;
-                                });
-                                return TextField(
-                                  controller: controller,
-                                  focusNode: focusNode,
-                                  decoration: InputDecoration(
-                                    hintText: _currentSearchType.hint,
-                                    prefixIcon: const Icon(Icons.search),
-                                    suffixIcon: _isLoadingSuggestions
-                                        ? const Padding(
-                                            padding: EdgeInsets.all(12.0),
-                                            child: SizedBox(
-                                              width: 20,
-                                              height: 20,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                              ),
-                                            ),
-                                          )
-                                        : null,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    filled: true,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 12,
-                                    ),
-                                  ),
-                                  textInputAction: TextInputAction.done,
-                                  onSubmitted: (_) {
-                                    onSubmitted();
-                                    _addSearchCondition();
-                                  },
-                                );
-                              },
-                            )
-                          : TextField(
-                              controller: _searchController,
-                              decoration: InputDecoration(
-                                hintText: _currentSearchType.hint,
-                                prefixIcon: const Icon(Icons.search),
-                                prefixText:
-                                    _currentSearchType == SearchType.rjNumber
-                                        ? 'RJ'
-                                        : null,
-                                prefixStyle: TextStyle(
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.normal,
-                                ),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                filled: true,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 12,
-                                ),
-                              ),
-                              keyboardType:
-                                  _currentSearchType == SearchType.rjNumber
-                                      ? TextInputType.number
-                                      : TextInputType.text,
-                              inputFormatters:
-                                  _currentSearchType == SearchType.rjNumber
-                                      ? [FilteringTextInputFormatter.digitsOnly]
-                                      : null,
-                              textInputAction: TextInputAction.done,
-                              onSubmitted: (_) => _addSearchCondition(),
-                            ),
-                    ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      height: 48,
-                      child: FilledButton.icon(
-                        onPressed: _addSearchCondition,
-                        icon: const Icon(Icons.add),
-                        label: const Text('添加'),
+                      flex: 8,
+                      child: SingleChildScrollView(
+                        child: Container(
+                          padding: EdgeInsets.fromLTRB(
+                            _showAdvancedFilters ? 8 : 16,
+                            16,
+                            16,
+                            16,
+                          ),
+                          color: theme.colorScheme.surface,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: _buildMainContentChildren(true),
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+              )
+            : SingleChildScrollView(
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  color: theme.colorScheme.surface,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: _buildMainContentChildren(false),
+                  ),
+                ),
+              ),
+      ), // Scaffold 的闭合
+    ); // GestureDetector 的闭合
+  }
 
-                // 高级筛选选项（可折叠）
-                if (_showAdvancedFilters) ...[
-                  const Divider(),
-                  const SizedBox(height: 8),
-
-                  // 评分筛选
+  Widget _buildAdvancedFiltersSidebar(ThemeData theme) {
+    return Flexible(
+      flex: 4,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
+        child: Card(
+          clipBehavior: Clip.antiAlias,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Row(
                     children: [
-                      const Icon(Icons.star, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '最低评分: ${_minRate.toStringAsFixed(2)} 星',
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                            Slider(
-                              value: _minRate,
-                              min: 0,
-                              max: 5,
-                              divisions: 20,
-                              label: _minRate.toStringAsFixed(2),
-                              onChanged: (value) =>
-                                  setState(() => _minRate = value),
-                            ),
-                          ],
-                        ),
+                      Text(
+                        '高级筛选',
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        tooltip: '隐藏高级筛选',
+                        onPressed: () {
+                          setState(() {
+                            _showAdvancedFilters = false;
+                            _minRate = 0;
+                            _ageRating = AgeRating.all;
+                            _salesRange = SalesRange.all;
+                          });
+                        },
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-
-                  // 年龄分级和销量筛选（一行显示）
-                  Row(
-                    children: [
-                      // 年龄分级
-                      Expanded(
-                        child: DropdownButtonFormField<AgeRating>(
-                          initialValue: _ageRating,
-                          decoration: InputDecoration(
-                            labelText: '年龄分级',
-                            prefixIcon: const Icon(Icons.shield),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            filled: true,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            isDense: true,
-                          ),
-                          items: AgeRating.values.map((rating) {
-                            return DropdownMenuItem(
-                              value: rating,
-                              child: Text(rating.label),
-                            );
-                          }).toList(),
-                          onChanged: (value) => setState(
-                              () => _ageRating = value ?? AgeRating.all),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      // 销量筛选
-                      Expanded(
-                        child: DropdownButtonFormField<SalesRange>(
-                          initialValue: _salesRange,
-                          decoration: InputDecoration(
-                            labelText: '销量',
-                            prefixIcon: const Icon(Icons.trending_up),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            filled: true,
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            isDense: true,
-                          ),
-                          items: SalesRange.values.map((range) {
-                            return DropdownMenuItem(
-                              value: range,
-                              child: Text(range.label),
-                            );
-                          }).toList(),
-                          onChanged: (value) => setState(
-                              () => _salesRange = value ?? SalesRange.all),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
+                  ..._buildAdvancedFilterSections(),
                 ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
-                // 搜索按钮
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed:
-                        _searchConditions.isEmpty ? null : _performSearch,
-                    icon: const Icon(Icons.search),
-                    label: Text(_searchConditions.isEmpty
-                        ? '请先添加搜索条件'
-                        : '搜索 (${_searchConditions.length} 个条件)'),
+  List<Widget> _buildMainContentChildren(bool isLandscape) {
+    final theme = Theme.of(context);
+
+    return [
+      if (_searchConditions.isNotEmpty) ...[
+        Text(
+          '搜索条件',
+          style: theme.textTheme.titleSmall,
+        ),
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 40,
+          child: ListView.builder(
+            controller: _conditionsScrollController,
+            scrollDirection: Axis.horizontal,
+            itemCount: _searchConditions.length,
+            itemBuilder: (context, index) {
+              final condition = _searchConditions[index];
+              final displayValue = condition.type == SearchType.rjNumber
+                  ? 'RJ${condition.value}'
+                  : condition.value;
+
+              return Padding(
+                padding: EdgeInsets.only(
+                  right: index == _searchConditions.length - 1 ? 0 : 6,
+                ),
+                child: Chip(
+                  avatar: Icon(
+                    condition.isExclude
+                        ? Icons.remove_circle_outline
+                        : _getSearchTypeIcon(condition.type),
+                    size: 16,
                   ),
+                  label: Text(
+                    '${condition.type.label}: $displayValue',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  backgroundColor: condition.isExclude
+                      ? theme.colorScheme.errorContainer
+                      : theme.colorScheme.secondaryContainer,
+                  onDeleted: () => _removeSearchCondition(condition.id),
+                  deleteIcon: const Icon(Icons.close, size: 16),
+                  side: BorderSide.none,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  labelPadding: const EdgeInsets.only(left: 4, right: 2),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
+      Text(
+        '添加搜索条件',
+        style: theme.textTheme.titleSmall,
+      ),
+      const SizedBox(height: 8),
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: SearchType.values.map((type) {
+            final supportsExclude = type == SearchType.tag ||
+                type == SearchType.va ||
+                type == SearchType.circle;
+            final isCurrentType = _currentSearchType == type;
+            final buttonTextStyle = theme.textTheme.labelLarge!;
+
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Theme(
+                data: theme.copyWith(useMaterial3: false),
+                child: ChoiceChip(
+                  avatar: isCurrentType && _isExcludeMode && supportsExclude
+                      ? Icon(
+                          Icons.remove_circle_outline,
+                          size: 18,
+                          color: theme.colorScheme.onErrorContainer,
+                        )
+                      : null,
+                  label: Text(type.label),
+                  selected: isCurrentType,
+                  showCheckmark:
+                      !(isCurrentType && _isExcludeMode && supportsExclude),
+                  selectedColor:
+                      isCurrentType && _isExcludeMode && supportsExclude
+                          ? theme.colorScheme.errorContainer
+                          : theme.colorScheme.primary,
+                  labelStyle: buttonTextStyle.copyWith(
+                    color: isCurrentType
+                        ? (isCurrentType && _isExcludeMode && supportsExclude
+                            ? theme.colorScheme.onErrorContainer
+                            : theme.colorScheme.onPrimary)
+                        : theme.colorScheme.onSurface,
+                  ),
+                  checkmarkColor: theme.colorScheme.onPrimary,
+                  onSelected: (selected) {
+                    setState(() {
+                      if (isCurrentType && supportsExclude) {
+                        _isExcludeMode = !_isExcludeMode;
+                      } else {
+                        _currentSearchType = type;
+                        _isExcludeMode = false;
+                        _searchController.clear();
+                        _autocompleteKey = UniqueKey();
+                        if (supportsExclude) {
+                          _loadSuggestions();
+                        }
+                      }
+                    });
+                  },
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+      if (_currentSearchType == SearchType.tag ||
+          _currentSearchType == SearchType.va ||
+          _currentSearchType == SearchType.circle)
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Row(
+            children: [
+              Icon(
+                _isExcludeMode
+                    ? Icons.remove_circle_outline
+                    : Icons.info_outline,
+                size: 14,
+                color: _isExcludeMode
+                    ? theme.colorScheme.error
+                    : theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  _isExcludeMode
+                      ? '当前为排除模式：将排除包含该${_currentSearchType.label}的作品'
+                      : '提示：再次点击"${_currentSearchType.label}"可切换为排除模式',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _isExcludeMode
+                        ? theme.colorScheme.error
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      const SizedBox(height: 12),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: (_currentSearchType == SearchType.tag ||
+                    _currentSearchType == SearchType.va ||
+                    _currentSearchType == SearchType.circle)
+                ? Autocomplete<String>(
+                    key: _autocompleteKey,
+                    optionsBuilder: (TextEditingValue textEditingValue) {
+                      List<Map<String, dynamic>> sourceList;
+                      switch (_currentSearchType) {
+                        case SearchType.tag:
+                          sourceList = _allTags;
+                          break;
+                        case SearchType.va:
+                          sourceList = _allVas;
+                          break;
+                        case SearchType.circle:
+                          sourceList = _allCircles;
+                          break;
+                        default:
+                          sourceList = [];
+                      }
+
+                      List<Map<String, dynamic>> filteredList;
+                      if (textEditingValue.text.trim().isEmpty) {
+                        filteredList = sourceList.toList();
+                      } else {
+                        final query =
+                            textEditingValue.text.trim().toLowerCase();
+                        filteredList = sourceList.where((item) {
+                          final name =
+                              (item['name'] ?? item['title'] ?? '').toString();
+                          return name.toLowerCase().contains(query);
+                        }).toList();
+                      }
+
+                      return filteredList.map((item) {
+                        final name =
+                            (item['name'] ?? item['title'] ?? '').toString();
+                        final count = item['count'] ?? 0;
+                        return '$name ($count)';
+                      });
+                    },
+                    optionsMaxHeight: 300,
+                    onSelected: (String selection) {
+                      final name =
+                          selection.substring(0, selection.lastIndexOf(' ('));
+                      _searchController.text = name;
+                      _addSearchCondition();
+                    },
+                    fieldViewBuilder:
+                        (context, controller, focusNode, onSubmitted) {
+                      _searchFocusNode = focusNode;
+                      controller.text = _searchController.text;
+                      controller.addListener(() {
+                        _searchController.text = controller.text;
+                      });
+                      return TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: InputDecoration(
+                          hintText: _currentSearchType.hint,
+                          prefixIcon: const Icon(Icons.search),
+                          suffixIcon: _isLoadingSuggestions
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12.0),
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) {
+                          onSubmitted();
+                          _addSearchCondition();
+                        },
+                      );
+                    },
+                  )
+                : TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: _currentSearchType.hint,
+                      prefixIcon: const Icon(Icons.search),
+                      prefixText: _currentSearchType == SearchType.rjNumber
+                          ? 'RJ'
+                          : null,
+                      prefixStyle: TextStyle(
+                        color: theme.colorScheme.onSurface,
+                        fontSize: 16,
+                        fontWeight: FontWeight.normal,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                    ),
+                    keyboardType: _currentSearchType == SearchType.rjNumber
+                        ? TextInputType.number
+                        : TextInputType.text,
+                    inputFormatters: _currentSearchType == SearchType.rjNumber
+                        ? [FilteringTextInputFormatter.digitsOnly]
+                        : null,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _addSearchCondition(),
+                  ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            height: 48,
+            child: FilledButton.icon(
+              onPressed: _addSearchCondition,
+              icon: const Icon(Icons.add),
+              label: const Text('添加'),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      if (!isLandscape && _showAdvancedFilters) ...[
+        const Divider(),
+        const SizedBox(height: 8),
+        ..._buildAdvancedFilterSections(),
+      ],
+      SizedBox(
+        width: double.infinity,
+        child: FilledButton.icon(
+          onPressed: _searchConditions.isEmpty ? null : _performSearch,
+          icon: const Icon(Icons.search),
+          label: Text(
+            _searchConditions.isEmpty
+                ? '请先添加搜索条件'
+                : '搜索 (${_searchConditions.length} 个条件)',
+          ),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _buildAdvancedFilterSections() {
+    final theme = Theme.of(context);
+
+    return [
+      Row(
+        children: [
+          const Icon(Icons.star, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '最低评分: ${_minRate.toStringAsFixed(2)} 星',
+                  style: theme.textTheme.bodyMedium,
+                ),
+                Slider(
+                  value: _minRate,
+                  min: 0,
+                  max: 5,
+                  divisions: 20,
+                  label: _minRate.toStringAsFixed(2),
+                  onChanged: (value) => setState(() => _minRate = value),
                 ),
               ],
             ),
           ),
-        ), // SingleChildScrollView 的闭合，也是 body 的结束
-      ), // Scaffold 的闭合
-    ); // GestureDetector 的闭合
+        ],
+      ),
+      const SizedBox(height: 12),
+      Row(
+        children: [
+          Expanded(
+            child: DropdownButtonFormField<AgeRating>(
+              value: _ageRating,
+              decoration: InputDecoration(
+                labelText: '年龄分级',
+                prefixIcon: const Icon(Icons.shield),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                filled: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                isDense: true,
+              ),
+              items: AgeRating.values.map((rating) {
+                return DropdownMenuItem(
+                  value: rating,
+                  child: Text(rating.label),
+                );
+              }).toList(),
+              onChanged: (value) =>
+                  setState(() => _ageRating = value ?? AgeRating.all),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: DropdownButtonFormField<SalesRange>(
+              value: _salesRange,
+              decoration: InputDecoration(
+                labelText: '销量',
+                prefixIcon: const Icon(Icons.trending_up),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                filled: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                isDense: true,
+              ),
+              items: SalesRange.values.map((range) {
+                return DropdownMenuItem(
+                  value: range,
+                  child: Text(range.label),
+                );
+              }).toList(),
+              onChanged: (value) =>
+                  setState(() => _salesRange = value ?? SalesRange.all),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+    ];
   }
 
   IconData _getSearchTypeIcon(SearchType type) {

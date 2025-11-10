@@ -39,6 +39,14 @@ void main() async {
     ),
   );
 
+  // 允许横竖屏旋转
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
+
   runApp(const ProviderScope(child: KikoeruApp()));
 }
 

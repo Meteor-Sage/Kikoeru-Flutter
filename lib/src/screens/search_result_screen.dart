@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +6,7 @@ import '../providers/search_result_provider.dart';
 import '../widgets/works_grid_view.dart';
 import '../widgets/search_sort_dialog.dart';
 import '../widgets/global_audio_player_wrapper.dart';
+import '../widgets/responsive_dialog.dart';
 
 class SearchResultScreen extends ConsumerStatefulWidget {
   final String keyword;
@@ -26,6 +28,8 @@ class _SearchResultScreenState extends ConsumerState<SearchResultScreen> {
   final TextEditingController _pageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _showPagination = false;
+  Timer? _scrollDebouncer;
+  double _lastScrollPosition = 0.0;
 
   @override
   void initState() {
@@ -46,6 +50,7 @@ class _SearchResultScreenState extends ConsumerState<SearchResultScreen> {
 
   @override
   void dispose() {
+    _scrollDebouncer?.cancel();
     _pageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -54,15 +59,29 @@ class _SearchResultScreenState extends ConsumerState<SearchResultScreen> {
   void _onScroll() {
     if (!_scrollController.hasClients) return;
 
-    final isNearBottom = _scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200;
+    final scrollPosition = _scrollController.position.pixels;
+    final scrollDelta = (scrollPosition - _lastScrollPosition).abs();
 
-    // 显示/隐藏分页控件
-    if (isNearBottom != _showPagination) {
-      setState(() {
-        _showPagination = isNearBottom;
-      });
-    }
+    // 过滤小幅度滚动，减少不必要的处理
+    if (scrollDelta < 10) return;
+
+    _lastScrollPosition = scrollPosition;
+
+    // 使用防抖处理滚动事件
+    _scrollDebouncer?.cancel();
+    _scrollDebouncer = Timer(const Duration(milliseconds: 150), () {
+      if (!mounted || !_scrollController.hasClients) return;
+
+      final isNearBottom = _scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 200;
+
+      // 显示/隐藏分页控件
+      if (isNearBottom != _showPagination) {
+        setState(() {
+          _showPagination = isNearBottom;
+        });
+      }
+    });
   }
 
   void _scrollToTop() {
@@ -614,39 +633,53 @@ class _SearchResultScreenState extends ConsumerState<SearchResultScreen> {
 
   // 显示页码跳转对话框
   void _showPageJumpDialog(SearchResultState searchState, int maxPage) {
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('跳转到指定页'),
-        content: TextField(
-          controller: _pageController,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: '页码',
-            hintText: '输入 1-$maxPage',
-            border: const OutlineInputBorder(),
-            prefixIcon: const Icon(Icons.tag),
-          ),
-          onSubmitted: (value) {
-            Navigator.of(context).pop();
-            _handlePageJump(value, maxPage);
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () {
+      builder: (context) {
+        final dialog = ResponsiveAlertDialog(
+          title: const Text('跳转到指定页'),
+          content: TextField(
+            controller: _pageController,
+            keyboardType: TextInputType.number,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: '页码',
+              hintText: '输入 1-$maxPage',
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.tag),
+            ),
+            onSubmitted: (value) {
               Navigator.of(context).pop();
-              _handlePageJump(_pageController.text, maxPage);
+              _handlePageJump(value, maxPage);
             },
-            child: const Text('跳转'),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _handlePageJump(_pageController.text, maxPage);
+              },
+              child: const Text('跳转'),
+            ),
+          ],
+        );
+
+        // 横屏时移除底部视图插入（键盘），让对话框保持固定位置
+        return isLandscape
+            ? MediaQuery.removeViewInsets(
+                removeBottom: true,
+                context: context,
+                child: dialog,
+              )
+            : dialog;
+      },
     );
   }
 

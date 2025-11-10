@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../providers/my_reviews_provider.dart';
 import '../widgets/enhanced_work_card.dart';
+import '../widgets/responsive_dialog.dart';
 import 'downloads_screen.dart';
 export '../providers/my_reviews_provider.dart' show MyReviewLayoutType;
 
@@ -18,6 +20,8 @@ class _MyScreenState extends ConsumerState<MyScreen>
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _pageController = TextEditingController();
   bool _showPagination = false;
+  Timer? _scrollDebouncer;
+  double _lastScrollPosition = 0.0;
 
   @override
   bool get wantKeepAlive => true; // 保持状态不被销毁
@@ -38,19 +42,34 @@ class _MyScreenState extends ConsumerState<MyScreen>
   void _onScroll() {
     if (!_scrollController.hasClients) return;
 
-    final isNearBottom = _scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200;
+    final scrollPosition = _scrollController.position.pixels;
+    final scrollDelta = (scrollPosition - _lastScrollPosition).abs();
 
-    // 显示/隐藏分页控件
-    if (isNearBottom != _showPagination) {
-      setState(() {
-        _showPagination = isNearBottom;
-      });
-    }
+    // 过滤小幅度滚动，减少不必要的处理
+    if (scrollDelta < 10) return;
+
+    _lastScrollPosition = scrollPosition;
+
+    // 使用防抖处理滚动事件
+    _scrollDebouncer?.cancel();
+    _scrollDebouncer = Timer(const Duration(milliseconds: 150), () {
+      if (!mounted || !_scrollController.hasClients) return;
+
+      final isNearBottom = _scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 200;
+
+      // 显示/隐藏分页控件
+      if (isNearBottom != _showPagination) {
+        setState(() {
+          _showPagination = isNearBottom;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
+    _scrollDebouncer?.cancel();
     _scrollController.dispose();
     _pageController.dispose();
     super.dispose();
@@ -268,39 +287,53 @@ class _MyScreenState extends ConsumerState<MyScreen>
 
   // 显示页码跳转对话框
   void _showPageJumpDialog(MyReviewsState state, int maxPage) {
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('跳转到指定页'),
-        content: TextField(
-          controller: _pageController,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: '页码',
-            hintText: '输入 1-$maxPage',
-            border: const OutlineInputBorder(),
-            prefixIcon: const Icon(Icons.tag),
-          ),
-          onSubmitted: (value) {
-            Navigator.of(context).pop();
-            _handlePageJump(value, maxPage);
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () {
+      builder: (context) {
+        final dialog = ResponsiveAlertDialog(
+          title: const Text('跳转到指定页'),
+          content: TextField(
+            controller: _pageController,
+            keyboardType: TextInputType.number,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: '页码',
+              hintText: '输入 1-$maxPage',
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.tag),
+            ),
+            onSubmitted: (value) {
               Navigator.of(context).pop();
-              _handlePageJump(_pageController.text, maxPage);
+              _handlePageJump(value, maxPage);
             },
-            child: const Text('跳转'),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _handlePageJump(_pageController.text, maxPage);
+              },
+              child: const Text('跳转'),
+            ),
+          ],
+        );
+
+        // 横屏时移除底部视图插入（键盘），让对话框保持固定位置
+        return isLandscape
+            ? MediaQuery.removeViewInsets(
+                removeBottom: true,
+                context: context,
+                child: dialog,
+              )
+            : dialog;
+      },
     );
   }
 
@@ -514,11 +547,20 @@ class _MyScreenState extends ConsumerState<MyScreen>
       return const Center(child: CircularProgressIndicator());
     }
 
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
     switch (state.layoutType) {
       case MyReviewLayoutType.bigGrid:
-        return _buildGridView(state, crossAxisCount: 2);
+        return _buildGridView(
+          state,
+          crossAxisCount: isLandscape ? 3 : 2,
+        );
       case MyReviewLayoutType.smallGrid:
-        return _buildGridView(state, crossAxisCount: 3);
+        return _buildGridView(
+          state,
+          crossAxisCount: isLandscape ? 5 : 3,
+        );
       case MyReviewLayoutType.list:
         return _buildListView(state);
     }
@@ -529,6 +571,10 @@ class _MyScreenState extends ConsumerState<MyScreen>
       onRefresh: () async => ref.read(myReviewsProvider.notifier).refresh(),
       child: CustomScrollView(
         controller: _scrollController,
+        cacheExtent: 500,
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: ClampingScrollPhysics(),
+        ),
         slivers: [
           SliverPadding(
             padding: const EdgeInsets.all(8),
@@ -539,8 +585,10 @@ class _MyScreenState extends ConsumerState<MyScreen>
               childCount: state.works.length,
               itemBuilder: (context, index) {
                 final work = state.works[index];
-                return EnhancedWorkCard(
-                    work: work, crossAxisCount: crossAxisCount);
+                return RepaintBoundary(
+                  child: EnhancedWorkCard(
+                      work: work, crossAxisCount: crossAxisCount),
+                );
               },
             ),
           ),
@@ -563,6 +611,10 @@ class _MyScreenState extends ConsumerState<MyScreen>
       onRefresh: () async => ref.read(myReviewsProvider.notifier).refresh(),
       child: CustomScrollView(
         controller: _scrollController,
+        cacheExtent: 500,
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: ClampingScrollPhysics(),
+        ),
         slivers: [
           SliverPadding(
             padding: const EdgeInsets.all(8),
@@ -570,7 +622,9 @@ class _MyScreenState extends ConsumerState<MyScreen>
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
                   final work = state.works[index];
-                  return EnhancedWorkCard(work: work, crossAxisCount: 1);
+                  return RepaintBoundary(
+                    child: EnhancedWorkCard(work: work, crossAxisCount: 1),
+                  );
                 },
                 childCount: state.works.length,
               ),

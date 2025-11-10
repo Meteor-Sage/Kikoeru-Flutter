@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../providers/works_provider.dart';
 import '../widgets/enhanced_work_card.dart';
 import '../widgets/sort_dialog.dart';
+import '../widgets/responsive_dialog.dart';
 
 class WorksScreen extends ConsumerStatefulWidget {
   const WorksScreen({super.key});
@@ -18,6 +20,11 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
   final TextEditingController _pageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _showPagination = false;
+
+  // 防抖相关
+  Timer? _scrollDebouncer;
+  bool _isLoadingMore = false;
+  double _lastScrollPosition = 0;
 
   @override
   bool get wantKeepAlive => true; // 保持状态不被销毁
@@ -37,6 +44,7 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
 
   @override
   void dispose() {
+    _scrollDebouncer?.cancel();
     _pageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -46,28 +54,53 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
     // 使用防抖机制,避免频繁调用
     if (!_scrollController.hasClients) return;
 
-    final worksState = ref.read(worksProvider);
-    final isNearBottom = _scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200;
+    final currentPosition = _scrollController.position.pixels;
+    final maxScrollExtent = _scrollController.position.maxScrollExtent;
 
-    // 全部模式:显示/隐藏分页控件
+    // 防止重复触发 - 如果滚动位置变化小于 10 像素则不处理
+    if ((currentPosition - _lastScrollPosition).abs() < 10) return;
+    _lastScrollPosition = currentPosition;
+
+    final worksState = ref.read(worksProvider);
+    final isNearBottom = currentPosition >= maxScrollExtent - 300;
+
+    // 取消之前的防抖计时器
+    _scrollDebouncer?.cancel();
+
+    // 全部模式:显示/隐藏分页控件（带防抖）
     if (worksState.displayMode == DisplayMode.all) {
-      if (isNearBottom != _showPagination) {
-        setState(() {
-          _showPagination = isNearBottom;
-        });
-      }
+      _scrollDebouncer = Timer(const Duration(milliseconds: 150), () {
+        if (isNearBottom != _showPagination && mounted) {
+          setState(() {
+            _showPagination = isNearBottom;
+          });
+        }
+      });
     }
-    // 热门/推荐模式:自动加载更多
+    // 热门/推荐模式:自动加载更多（带防抖）
     else {
-      if (isNearBottom && !worksState.isLoading && worksState.hasMore) {
-        ref.read(worksProvider.notifier).loadWorks();
+      if (isNearBottom &&
+          !worksState.isLoading &&
+          worksState.hasMore &&
+          !_isLoadingMore) {
+        _isLoadingMore = true;
+        _scrollDebouncer = Timer(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            ref.read(worksProvider.notifier).loadWorks().then((_) {
+              _isLoadingMore = false;
+            }).catchError((_) {
+              _isLoadingMore = false;
+            });
+          }
+        });
       }
       // 确保分页控件隐藏
       if (_showPagination) {
-        setState(() {
-          _showPagination = false;
-        });
+        if (mounted) {
+          setState(() {
+            _showPagination = false;
+          });
+        }
       }
     }
   }
@@ -360,11 +393,20 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
   }
 
   Widget _buildLayoutView(WorksState worksState) {
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
     switch (worksState.layoutType) {
       case LayoutType.bigGrid:
-        return _buildGridView(worksState, crossAxisCount: 2);
+        return _buildGridView(
+          worksState,
+          crossAxisCount: isLandscape ? 3 : 2,
+        );
       case LayoutType.smallGrid:
-        return _buildGridView(worksState, crossAxisCount: 3);
+        return _buildGridView(
+          worksState,
+          crossAxisCount: isLandscape ? 5 : 3,
+        );
       case LayoutType.list:
         return _buildListView(worksState);
     }
@@ -375,6 +417,10 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
 
     return CustomScrollView(
       controller: _scrollController,
+      cacheExtent: 500, // 增加缓存范围，预加载更多内容
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: ClampingScrollPhysics(), // 使用更流畅的物理滚动
+      ),
       slivers: [
         SliverPadding(
           padding: const EdgeInsets.all(8), // 统一为8
@@ -394,9 +440,11 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
               }
 
               final work = worksState.works[index];
-              return EnhancedWorkCard(
-                work: work,
-                crossAxisCount: crossAxisCount,
+              return RepaintBoundary(
+                child: EnhancedWorkCard(
+                  work: work,
+                  crossAxisCount: crossAxisCount,
+                ),
               );
             },
           ),
@@ -445,6 +493,10 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
 
     return CustomScrollView(
       controller: _scrollController,
+      cacheExtent: 500, // 增加缓存范围，预加载更多内容
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: ClampingScrollPhysics(), // 使用更流畅的物理滚动
+      ),
       slivers: [
         SliverPadding(
           padding: const EdgeInsets.all(8),
@@ -493,9 +545,11 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
                 }
 
                 final work = worksState.works[index];
-                return EnhancedWorkCard(
-                  work: work,
-                  crossAxisCount: 1, // 列表视图
+                return RepaintBoundary(
+                  child: EnhancedWorkCard(
+                    work: work,
+                    crossAxisCount: 1, // 列表视图
+                  ),
                 );
               },
               childCount: worksState.works.length +
@@ -683,39 +737,54 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
 
   // 显示页码跳转对话框
   void _showPageJumpDialog(WorksState worksState, int maxPage) {
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('跳转到指定页'),
-        content: TextField(
-          controller: _pageController,
-          keyboardType: TextInputType.number,
-          autofocus: true,
-          decoration: InputDecoration(
-            labelText: '页码',
-            hintText: '输入 1-$maxPage',
-            border: const OutlineInputBorder(),
-            prefixIcon: const Icon(Icons.tag),
-          ),
-          onSubmitted: (value) {
-            Navigator.of(context).pop();
-            _handlePageJump(value, maxPage);
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () {
+      builder: (context) {
+        // 横屏时移除键盘视图插入，避免对话框被挤压
+        final dialog = ResponsiveAlertDialog(
+          title: const Text('跳转到指定页'),
+          content: TextField(
+            controller: _pageController,
+            keyboardType: TextInputType.number,
+            autofocus: true,
+            decoration: InputDecoration(
+              labelText: '页码',
+              hintText: '输入 1-$maxPage',
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.tag),
+            ),
+            onSubmitted: (value) {
               Navigator.of(context).pop();
-              _handlePageJump(_pageController.text, maxPage);
+              _handlePageJump(value, maxPage);
             },
-            child: const Text('跳转'),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _handlePageJump(_pageController.text, maxPage);
+              },
+              child: const Text('跳转'),
+            ),
+          ],
+        );
+
+        // 横屏时移除底部视图插入（键盘），让对话框保持固定位置
+        return isLandscape
+            ? MediaQuery.removeViewInsets(
+                removeBottom: true,
+                context: context,
+                child: dialog,
+              )
+            : dialog;
+      },
     );
   }
 

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'account_management_screen.dart';
 import 'downloads_screen.dart';
 import 'theme_settings_screen.dart';
+import 'about_screen.dart';
 import '../services/cache_service.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -39,98 +40,149 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Widget build(BuildContext context) {
     super.build(context); // 必须调用以保持状态
     _updateCacheSize(); // 每次 build 时更新缓存大小
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    final cards = [
+      _buildAccountCard(context),
+      _buildDownloadAndCacheCard(context),
+      _buildAppearanceAndAboutCard(context),
+    ];
+
     return Scaffold(
       appBar: AppBar(title: const Text('设置', style: TextStyle(fontSize: 18))),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: isLandscape
+          ? _buildLandscapeLayout(cards)
+          : ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemBuilder: (context, index) => cards[index],
+              separatorBuilder: (context, index) => const SizedBox(height: 16),
+              itemCount: cards.length,
+            ),
+    );
+  }
+
+  Widget _buildLandscapeLayout(List<Widget> cards) {
+    final column1 = <Widget>[];
+    final column2 = <Widget>[];
+
+    void addToColumn(List<Widget> column, Widget card) {
+      if (column.isNotEmpty) {
+        column.add(const SizedBox(height: 16));
+      }
+      column.add(card);
+    }
+
+    for (var i = 0; i < cards.length; i++) {
+      if (i.isEven) {
+        addToColumn(column1, cards[i]);
+      } else {
+        addToColumn(column2, cards[i]);
+      }
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Account Management section
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.manage_accounts),
-              title: const Text('账户管理'),
-              subtitle: const Text('多账户管理,切换账户'),
-              trailing: const Icon(Icons.arrow_forward_ios),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (context) => const AccountManagementScreen(),
-                  ),
-                );
-              },
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: column1,
             ),
           ),
-
-          const SizedBox(height: 16),
-          Card(
+          const SizedBox(width: 16),
+          Expanded(
             child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.download),
-                  title: const Text('下载管理'),
-                  subtitle: const Text('查看和管理下载任务'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const DownloadsScreen(),
-                      ),
-                    );
-                  },
-                ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.storage),
-                  title: const Text('缓存管理', style: TextStyle(fontSize: 18)),
-                  subtitle: Text('当前缓存: $_cacheSize'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    _showCacheManagementDialog();
-                  },
-                ),
-              ],
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: column2.isEmpty ? [const SizedBox.shrink()] : column2,
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-          const SizedBox(height: 16),
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.palette),
-                  title: const Text('主题设置'),
-                  subtitle: const Text('深色模式、主题色等'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const ThemeSettingsScreen(),
-                      ),
-                    );
-                  },
-                ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.language),
-                  title: const Text('语言设置'),
-                  subtitle: const Text('界面语言'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    // TODO: Navigate to language settings
-                  },
-                ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.info_outline),
-                  title: const Text('关于'),
-                  subtitle: const Text('版本信息、许可证等'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    // TODO: Navigate to about page
-                  },
-                ),
-              ],
+  Widget _buildAccountCard(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.manage_accounts),
+        title: const Text('账户管理'),
+        subtitle: const Text('多账户管理,切换账户'),
+        trailing: const Icon(Icons.arrow_forward_ios),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const AccountManagementScreen(),
             ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildDownloadAndCacheCard(BuildContext context) {
+    return Card(
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.download),
+            title: const Text('下载管理'),
+            subtitle: const Text('查看和管理下载任务'),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const DownloadsScreen(),
+                ),
+              );
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.storage),
+            title: const Text('缓存管理'),
+            subtitle: Text('当前缓存: $_cacheSize'),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {
+              _showCacheManagementDialog();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppearanceAndAboutCard(BuildContext context) {
+    return Card(
+      child: Column(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.palette),
+            title: const Text('主题设置'),
+            subtitle: const Text('深色模式、主题色等'),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const ThemeSettingsScreen(),
+                ),
+              );
+            },
+          ),
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('关于'),
+            subtitle: const Text('版本信息、许可证等'),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const AboutScreen(),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -188,156 +240,409 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
 
         double currentSliderValue = mbToSliderValue(tempLimit);
 
+        final isLandscape =
+            MediaQuery.of(context).orientation == Orientation.landscape;
+
         return StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
-            title: const Text('缓存管理'),
+            title: Row(
+              children: [
+                const Expanded(
+                  child: Text('缓存管理', style: TextStyle(fontSize: 18)),
+                ),
+                if (isLandscape)
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                    tooltip: '关闭',
+                  ),
+              ],
+            ),
             content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 当前缓存大小
-                  Card(
-                    color:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
+              child: isLandscape
+                  ? SizedBox(
+                      width: MediaQuery.of(context).size.width * 0.65,
+                      child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            '当前缓存大小',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                          // 左列：缓存信息
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 当前缓存大小
+                                Card(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHighest,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          '当前缓存大小',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          formattedSize,
+                                          style: TextStyle(
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.bold,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        LinearProgressIndicator(
+                                          value: currentLimit > 0
+                                              ? (currentSize /
+                                                      (currentLimit *
+                                                          1024 *
+                                                          1024))
+                                                  .clamp(0.0, 1.0)
+                                              : 0.0,
+                                          backgroundColor: Colors.grey[300],
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                            currentSize >
+                                                    currentLimit * 1024 * 1024
+                                                ? Colors.red
+                                                : Theme.of(context)
+                                                    .colorScheme
+                                                    .primary,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '上限: ${currentLimit}MB',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                // 使用量详情
+                                Card(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .surfaceContainerHighest,
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          '使用率',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Text(
+                                              '${currentLimit > 0 ? ((currentSize / (currentLimit * 1024 * 1024)) * 100).clamp(0.0, 100.0).toStringAsFixed(1) : "0.0"}%',
+                                              style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                                color: currentSize >
+                                                        currentLimit *
+                                                            1024 *
+                                                            1024
+                                                    ? Colors.red
+                                                    : Theme.of(context)
+                                                        .colorScheme
+                                                        .primary,
+                                              ),
+                                            ),
+                                            Icon(
+                                              currentSize >
+                                                      currentLimit * 1024 * 1024
+                                                  ? Icons.warning_amber_rounded
+                                                  : Icons.check_circle_outline,
+                                              color: currentSize >
+                                                      currentLimit * 1024 * 1024
+                                                  ? Colors.red
+                                                  : Colors.green,
+                                              size: 28,
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            formattedSize,
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          LinearProgressIndicator(
-                            value: currentLimit > 0
-                                ? (currentSize / (currentLimit * 1024 * 1024))
-                                    .clamp(0.0, 1.0)
-                                : 0.0,
-                            backgroundColor: Colors.grey[300],
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              currentSize > currentLimit * 1024 * 1024
-                                  ? Colors.red
-                                  : Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '上限: ${currentLimit}MB',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
+                          const SizedBox(width: 16),
+                          const VerticalDivider(width: 1),
+                          const SizedBox(width: 16),
+                          // 右列：设置和说明
+                          Expanded(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 缓存大小上限设置
+                                const Text(
+                                  '缓存大小上限',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Column(
+                                  children: [
+                                    Slider(
+                                      value: currentSliderValue,
+                                      min: 0,
+                                      max: 100,
+                                      divisions: 20,
+                                      label: tempLimit < 1024
+                                          ? '${tempLimit}MB'
+                                          : '${(tempLimit / 1024).toStringAsFixed(1)}GB',
+                                      onChanged: (value) {
+                                        setDialogState(() {
+                                          currentSliderValue = value;
+                                          tempLimit = sliderValueToMB(value);
+                                        });
+                                      },
+                                      onChangeEnd: (value) async {
+                                        final finalLimit =
+                                            sliderValueToMB(value);
+                                        await CacheService.setCacheSizeLimit(
+                                            finalLimit);
+                                        if (mounted) {
+                                          setState(() {}); // 刷新主界面
+                                        }
+                                      },
+                                    ),
+                                    Text(
+                                      tempLimit < 1024
+                                          ? '${tempLimit}MB'
+                                          : '${(tempLimit / 1024).toStringAsFixed(1)}GB',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+
+                                // 说明文本
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(Icons.info_outline,
+                                              size: 16, color: Colors.blue),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            '自动清理说明',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                              color: Colors.blue,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        '• 当缓存超过上限时，会自动执行清理\n'
+                                        '• 删除直到缓存降低到上限的80%\n'
+                                        '• 按最近最少使用(LRU)策略删除',
+                                        style: TextStyle(fontSize: 12),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 缓存大小上限设置
-                  const Text(
-                    '缓存大小上限',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Column(
-                    children: [
-                      Slider(
-                        value: currentSliderValue,
-                        min: 0,
-                        max: 100,
-                        divisions: 20,
-                        label: tempLimit < 1024
-                            ? '${tempLimit}MB'
-                            : '${(tempLimit / 1024).toStringAsFixed(1)}GB',
-                        onChanged: (value) {
-                          setDialogState(() {
-                            currentSliderValue = value;
-                            tempLimit = sliderValueToMB(value);
-                          });
-                        },
-                        onChangeEnd: (value) async {
-                          final finalLimit = sliderValueToMB(value);
-                          await CacheService.setCacheSizeLimit(finalLimit);
-                          if (mounted) {
-                            setState(() {}); // 刷新主界面
-                          }
-                        },
-                      ),
-                      Text(
-                        tempLimit < 1024
-                            ? '${tempLimit}MB'
-                            : '${(tempLimit / 1024).toStringAsFixed(1)}GB',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 说明文本
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Column(
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
+                        // 当前缓存大小
+                        Card(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  '当前缓存大小',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  formattedSize,
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                LinearProgressIndicator(
+                                  value: currentLimit > 0
+                                      ? (currentSize /
+                                              (currentLimit * 1024 * 1024))
+                                          .clamp(0.0, 1.0)
+                                      : 0.0,
+                                  backgroundColor: Colors.grey[300],
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    currentSize > currentLimit * 1024 * 1024
+                                        ? Colors.red
+                                        : Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '上限: ${currentLimit}MB',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // 缓存大小上限设置
+                        const Text(
+                          '缓存大小上限',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Column(
                           children: [
-                            Icon(Icons.info_outline,
-                                size: 16, color: Colors.blue),
-                            SizedBox(width: 8),
+                            Slider(
+                              value: currentSliderValue,
+                              min: 0,
+                              max: 100,
+                              divisions: 20,
+                              label: tempLimit < 1024
+                                  ? '${tempLimit}MB'
+                                  : '${(tempLimit / 1024).toStringAsFixed(1)}GB',
+                              onChanged: (value) {
+                                setDialogState(() {
+                                  currentSliderValue = value;
+                                  tempLimit = sliderValueToMB(value);
+                                });
+                              },
+                              onChangeEnd: (value) async {
+                                final finalLimit = sliderValueToMB(value);
+                                await CacheService.setCacheSizeLimit(
+                                    finalLimit);
+                                if (mounted) {
+                                  setState(() {}); // 刷新主界面
+                                }
+                              },
+                            ),
                             Text(
-                              '自动清理说明',
+                              tempLimit < 1024
+                                  ? '${tempLimit}MB'
+                                  : '${(tempLimit / 1024).toStringAsFixed(1)}GB',
                               style: TextStyle(
-                                fontWeight: FontWeight.w500,
-                                color: Colors.blue,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                             ),
                           ],
                         ),
-                        SizedBox(height: 8),
-                        Text(
-                          '• 当缓存超过上限时，会自动执行清理\n'
-                          '• 删除直到缓存降低到上限的80%\n',
-                          style: TextStyle(fontSize: 12),
+                        const SizedBox(height: 16),
+
+                        // 说明文本
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.info_outline,
+                                      size: 16, color: Colors.blue),
+                                  SizedBox(width: 8),
+                                  Text(
+                                    '自动清理说明',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.blue,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                '• 当缓存超过上限时，会自动执行清理\n'
+                                '• 删除直到缓存降低到上限的80%\n',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
             ),
             actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: const Text('关闭'),
-              ),
+              if (!isLandscape)
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('关闭'),
+                ),
               ElevatedButton.icon(
                 onPressed: () async {
                   // 确认清除缓存

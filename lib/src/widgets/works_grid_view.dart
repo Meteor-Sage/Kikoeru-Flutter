@@ -25,11 +25,20 @@ class WorksGridView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
     switch (layoutType) {
       case LayoutType.bigGrid:
-        return _buildGridView(context, crossAxisCount: 2);
+        return _buildGridView(
+          context,
+          crossAxisCount: isLandscape ? 3 : 2,
+        );
       case LayoutType.smallGrid:
-        return _buildGridView(context, crossAxisCount: 3);
+        return _buildGridView(
+          context,
+          crossAxisCount: isLandscape ? 5 : 3,
+        );
       case LayoutType.list:
         return _buildListView(context);
     }
@@ -38,6 +47,10 @@ class WorksGridView extends StatelessWidget {
   Widget _buildGridView(BuildContext context, {required int crossAxisCount}) {
     return CustomScrollView(
       controller: scrollController,
+      cacheExtent: 500,
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: ClampingScrollPhysics(),
+      ),
       slivers: [
         SliverPadding(
           padding: const EdgeInsets.all(8), // 统一为8
@@ -55,9 +68,11 @@ class WorksGridView extends StatelessWidget {
               }
 
               final work = works[index];
-              return EnhancedWorkCard(
-                work: work,
-                crossAxisCount: crossAxisCount,
+              return RepaintBoundary(
+                child: EnhancedWorkCard(
+                  work: work,
+                  crossAxisCount: crossAxisCount,
+                ),
               );
             },
           ),
@@ -104,6 +119,10 @@ class WorksGridView extends StatelessWidget {
   Widget _buildListView(BuildContext context) {
     return CustomScrollView(
       controller: scrollController,
+      cacheExtent: 500,
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: ClampingScrollPhysics(),
+      ),
       slivers: [
         SliverPadding(
           padding: const EdgeInsets.all(8),
@@ -146,9 +165,11 @@ class WorksGridView extends StatelessWidget {
                 }
 
                 final work = works[index];
-                return EnhancedWorkCard(
-                  work: work,
-                  crossAxisCount: 1,
+                return RepaintBoundary(
+                  child: EnhancedWorkCard(
+                    work: work,
+                    crossAxisCount: 1,
+                  ),
                 );
               },
               childCount:

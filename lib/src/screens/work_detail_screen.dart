@@ -12,6 +12,7 @@ import '../widgets/file_selection_dialog.dart';
 import '../widgets/global_audio_player_wrapper.dart';
 import '../widgets/tag_chip.dart';
 import '../widgets/va_chip.dart';
+import '../widgets/responsive_dialog.dart';
 
 class WorkDetailScreen extends ConsumerStatefulWidget {
   final Work work;
@@ -94,19 +95,14 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('正在加载文件列表...'),
-              ],
-            ),
-          ),
+      builder: (context) => ResponsiveAlertDialog(
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('正在加载文件列表...'),
+          ],
         ),
       ),
     );
@@ -301,7 +297,142 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
       MyReviewFilter.postponed,
     ];
 
-    await showModalBottomSheet(
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
+    if (isLandscape) {
+      // 横屏模式：使用对话框形式，3+3两列布局
+      await showDialog(
+        context: context,
+        builder: (dialogContext) {
+          return Dialog(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.6,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 标题栏
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 20, 16, 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '选择收藏状态',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.of(dialogContext).pop(),
+                          tooltip: '关闭',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // 内容区域 - 3+3两列布局，支持滚动
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 左列：前3个选项
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: filters.take(3).map((filter) {
+                                  final isSelected =
+                                      _currentProgress == filter.value;
+                                  return RadioListTile<String>(
+                                    title: Text(filter.label),
+                                    value: filter.value!,
+                                    groupValue: _currentProgress,
+                                    onChanged: (value) {
+                                      Navigator.of(dialogContext).pop();
+                                      _updateProgress(value);
+                                    },
+                                    selected: isSelected,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                        horizontal: 8),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                            const VerticalDivider(width: 1),
+                            // 右列：后2个选项 + 移除按钮
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ...filters.skip(3).map((filter) {
+                                    final isSelected =
+                                        _currentProgress == filter.value;
+                                    return RadioListTile<String>(
+                                      title: Text(filter.label),
+                                      value: filter.value!,
+                                      groupValue: _currentProgress,
+                                      onChanged: (value) {
+                                        Navigator.of(dialogContext).pop();
+                                        _updateProgress(value);
+                                      },
+                                      selected: isSelected,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                    );
+                                  }),
+                                  if (_currentProgress != null) ...[
+                                    const Divider(height: 1),
+                                    ListTile(
+                                      leading: Icon(
+                                        Icons.delete_outline,
+                                        color:
+                                            Theme.of(context).colorScheme.error,
+                                      ),
+                                      title: Text(
+                                        '移除',
+                                        style: TextStyle(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .error,
+                                        ),
+                                      ),
+                                      onTap: () {
+                                        Navigator.of(dialogContext).pop();
+                                        _updateProgress(null);
+                                      },
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                              horizontal: 8),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+      return;
+    }
+
+    // 竖屏模式：使用底部弹窗
+    await showResponsiveBottomSheet(
       context: context,
       builder: (context) {
         return Container(
@@ -550,369 +681,393 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
     final authState = ref.watch(authProvider);
     final host = authState.host ?? '';
     final token = authState.token ?? '';
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
 
     // 使用已有的work信息（来自列表），详细信息加载后再更新
     final work = _detailedWork ?? widget.work;
 
-    return RefreshIndicator(
-      onRefresh: _refreshWorkDetail,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(0),
-        physics: const AlwaysScrollableScrollPhysics(), // 确保即使内容不足也能下拉
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 封面图片 - 使用Stack叠加实现无感切换
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              child: Hero(
-                tag: 'work_cover_${widget.work.id}',
-                child: Material(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                  clipBehavior: Clip.antiAlias,
-                  child: Container(
-                    width: double.infinity,
-                    constraints: const BoxConstraints(
-                      maxHeight: 500,
+    // 封面图片组件
+    final coverWidget = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: Hero(
+        tag: 'work_cover_${widget.work.id}',
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          clipBehavior: Clip.antiAlias,
+          child: Container(
+            width: isLandscape ? null : double.infinity,
+            constraints: BoxConstraints(
+              maxHeight:
+                  isLandscape ? MediaQuery.of(context).size.height * 0.8 : 500,
+              maxWidth: isLandscape
+                  ? MediaQuery.of(context).size.width * 0.45
+                  : double.infinity,
+            ),
+            child: Stack(
+              fit: StackFit.passthrough,
+              children: [
+                // 底层：缓存图片，始终显示
+                CachedNetworkImage(
+                  imageUrl: work.getCoverImageUrl(host, token: token),
+                  cacheKey: 'work_cover_${widget.work.id}',
+                  fit: BoxFit.contain,
+                  placeholder: (context, url) => Container(
+                    height: 300,
+                    color: Colors.grey[300],
+                    child: const Center(
+                      child: CircularProgressIndicator(),
                     ),
-                    child: Stack(
-                      fit: StackFit.passthrough,
-                      children: [
-                        // 底层：缓存图片，始终显示
-                        CachedNetworkImage(
-                          imageUrl: work.getCoverImageUrl(host, token: token),
-                          cacheKey: 'work_cover_${widget.work.id}',
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            height: 300,
-                            color: Colors.grey[300],
-                            child: const Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            height: 300,
-                            color: Colors.grey[300],
-                            child: const Icon(
-                              Icons.image_not_supported,
-                              size: 64,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ),
-                        // 顶层：高清图，加载完成后覆盖
-                        if (_showHDImage && _hdImageProvider != null)
-                          Image(
-                            image: _hdImageProvider!,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const SizedBox.shrink(); // 出错时不显示，保持底层缓存图
-                            },
-                          ),
-                      ],
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    height: 300,
+                    color: Colors.grey[300],
+                    child: const Icon(
+                      Icons.image_not_supported,
+                      size: 64,
+                      color: Colors.grey,
                     ),
                   ),
                 ),
-              ),
+                // 顶层：高清图，加载完成后覆盖
+                if (_showHDImage && _hdImageProvider != null)
+                  Image(
+                    image: _hdImageProvider!,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const SizedBox.shrink(); // 出错时不显示，保持底层缓存图
+                    },
+                  ),
+              ],
             ),
-
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 标题（可长按复制）+ 内联字幕图标（紧跟标题最后一个字，不换行）
-                  GestureDetector(
-                    onLongPress: () => _copyToClipboard(work.title, '标题'),
-                    child: Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(text: work.title),
-                          if (work.hasSubtitle == true)
-                            WidgetSpan(
-                              alignment: PlaceholderAlignment.baseline,
-                              baseline: TextBaseline.alphabetic,
-                              child: Padding(
-                                padding: const EdgeInsets.only(left: 6),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 6,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    'CC',
-                                    style: TextStyle(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onPrimary,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      height: 1.1,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                      textAlign: TextAlign.start,
-                      softWrap: true,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // 显示加载状态或错误信息
-                  if (_errorMessage != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Row(
-                        children: [
-                          Icon(Icons.error_outline,
-                              size: 16,
-                              color: Theme.of(context).colorScheme.error),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              _errorMessage!,
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.error,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: _loadWorkDetail,
-                            child: const Text('重试',
-                                style: TextStyle(fontSize: 12)),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  // 评分信息 价格和销售信息
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      // 评分信息 - 总是显示
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 20),
-                          const SizedBox(width: 4),
-                          Text(
-                            (work.rateAverage != null &&
-                                    work.rateCount != null &&
-                                    work.rateCount! > 0)
-                                ? work.rateAverage!.toStringAsFixed(1)
-                                : '-',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '(${work.rateCount ?? 0})',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      // 时长信息
-                      if (work.duration != null && work.duration! > 0)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.access_time,
-                                color: Colors.blue, size: 16),
-                            const SizedBox(width: 4),
-                            Text(
-                              _formatDuration(work.duration!),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    color: Colors.blue[700],
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                            ),
-                          ],
-                        ),
-
-                      // 价格信息
-                      if (work.price != null)
-                        Text(
-                          '${work.price} 日元',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Colors.red[700],
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
-                                  ),
-                        ),
-
-                      // 销售数量信息
-                      if (work.dlCount != null && work.dlCount! > 0)
-                        Text(
-                          '售出：${_formatNumber(work.dlCount!)}',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Colors.grey[600],
-                                    fontSize: 12,
-                                  ),
-                        ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // 社团和声优信息
-                  if ((work.name != null && work.name!.isNotEmpty) ||
-                      (work.vas != null && work.vas!.isNotEmpty)) ...[
-                    Text(
-                      '社团 | 声优',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    // 社团和声优放在同一行
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: [
-                        // 社团名称标签
-                        if (work.name != null && work.name!.isNotEmpty)
-                          GestureDetector(
-                            onLongPress: () =>
-                                _copyToClipboard(work.name!, '社团'),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .secondaryContainer,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                work.name!,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSecondaryContainer,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                        // 声优列表
-                        if (work.vas != null && work.vas!.isNotEmpty)
-                          ...work.vas!.map((va) {
-                            return VaChip(
-                              va: va,
-                              fontSize: 12,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              borderRadius: 6,
-                              fontWeight: FontWeight.w500,
-                              onLongPress: () =>
-                                  _copyToClipboard(va.name, '声优'),
-                            );
-                          }).toList(),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // 标签信息
-                  if (work.tags != null && work.tags!.isNotEmpty) ...[
-                    Text(
-                      '标签',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: work.tags!
-                          .map((tag) => TagChip(
-                                tag: tag,
-                                fontSize: 12,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                                borderRadius: 6,
-                                fontWeight: FontWeight.w500,
-                                onLongPress: () =>
-                                    _copyToClipboard(tag.name, '标签'),
-                              ))
-                          .toList(),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // 发布日期
-                  if (work.release != null) ...[
-                    Text(
-                      '发布日期',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      work.release!.split('T')[0],
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontSize: 14,
-                          ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-
-                  // 播放按钮 - 替换为文件浏览器
-                  Text(
-                    '资源文件',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // 文件浏览器组件 - 移除固定高度，让它自由展开
-                  FileExplorerWidget(work: work),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
+
+    // 信息内容组件
+    final infoWidget = Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题（可长按复制）+ 内联字幕图标（紧跟标题最后一个字，不换行）
+          GestureDetector(
+            onLongPress: () => _copyToClipboard(work.title, '标题'),
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: work.title),
+                  if (work.hasSubtitle == true)
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.baseline,
+                      baseline: TextBaseline.alphabetic,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primary,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'CC',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              height: 1.1,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+              textAlign: TextAlign.start,
+              softWrap: true,
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // 显示加载状态或错误信息
+          if (_errorMessage != null)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline,
+                      size: 16, color: Theme.of(context).colorScheme.error),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _errorMessage!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _loadWorkDetail,
+                    child: const Text('重试', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+            ),
+
+          // 评分信息 价格和销售信息
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              // 评分信息 - 总是显示
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.star, color: Colors.amber, size: 20),
+                  const SizedBox(width: 4),
+                  Text(
+                    (work.rateAverage != null &&
+                            work.rateCount != null &&
+                            work.rateCount! > 0)
+                        ? work.rateAverage!.toStringAsFixed(1)
+                        : '-',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '(${work.rateCount ?? 0})',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+
+              // 时长信息
+              if (work.duration != null && work.duration! > 0)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.access_time, color: Colors.blue, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatDuration(work.duration!),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.blue[700],
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
+                  ],
+                ),
+
+              // 价格信息
+              if (work.price != null)
+                Text(
+                  '${work.price} 日元',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.red[700],
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                ),
+
+              // 销售数量信息
+              if (work.dlCount != null && work.dlCount! > 0)
+                Text(
+                  '售出：${_formatNumber(work.dlCount!)}',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.grey[600],
+                        fontSize: 12,
+                      ),
+                ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // 社团和声优信息
+          if ((work.name != null && work.name!.isNotEmpty) ||
+              (work.vas != null && work.vas!.isNotEmpty)) ...[
+            Text(
+              '社团 | 声优',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+            ),
+            const SizedBox(height: 8),
+
+            // 社团和声优放在同一行
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: [
+                // 社团名称标签
+                if (work.name != null && work.name!.isNotEmpty)
+                  GestureDetector(
+                    onLongPress: () => _copyToClipboard(work.name!, '社团'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.secondaryContainer,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        work.name!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSecondaryContainer,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // 声优列表
+                if (work.vas != null && work.vas!.isNotEmpty)
+                  ...work.vas!.map((va) {
+                    return VaChip(
+                      va: va,
+                      fontSize: 12,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      borderRadius: 6,
+                      fontWeight: FontWeight.w500,
+                      onLongPress: () => _copyToClipboard(va.name, '声优'),
+                    );
+                  }).toList(),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // 标签信息
+          if (work.tags != null && work.tags!.isNotEmpty) ...[
+            Text(
+              '标签',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: work.tags!
+                  .map((tag) => TagChip(
+                        tag: tag,
+                        fontSize: 12,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        borderRadius: 6,
+                        fontWeight: FontWeight.w500,
+                        onLongPress: () => _copyToClipboard(tag.name, '标签'),
+                      ))
+                  .toList(),
+            ),
+            const SizedBox(height: 16),
+          ],
+
+          // 发布日期
+          if (work.release != null) ...[
+            Text(
+              '发布日期',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              work.release!.split('T')[0],
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontSize: 14,
+                  ),
+            ),
+            const SizedBox(height: 24),
+          ],
+
+          // 播放按钮 - 替换为文件浏览器
+          Text(
+            '资源文件',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+          ),
+          const SizedBox(height: 8),
+
+          // 文件浏览器组件 - 移除固定高度，让它自由展开
+          FileExplorerWidget(work: work),
+        ],
+      ),
+    );
+
+    // 根据屏幕方向返回不同布局
+    if (isLandscape) {
+      // 横屏布局：左右分栏 - 左侧封面固定，右侧信息可滚动
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 左侧：封面（固定不滚动）
+          Expanded(
+            flex: 2,
+            child: Center(
+              child: coverWidget,
+            ),
+          ),
+          // 右侧：信息（可滚动，带下拉刷新）
+          Expanded(
+            flex: 3,
+            child: RefreshIndicator(
+              onRefresh: _refreshWorkDetail,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(0),
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: infoWidget,
+              ),
+            ),
+          ),
+        ],
+      );
+    } else {
+      // 竖屏布局：上下排列
+      return RefreshIndicator(
+        onRefresh: _refreshWorkDetail,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(0),
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              coverWidget,
+              infoWidget,
+            ],
+          ),
+        ),
+      );
+    }
   }
 
   String _formatNumber(int number) {
