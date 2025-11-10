@@ -71,13 +71,16 @@ class WorksGridView extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.info_outline,
-                      size: 18, color: Colors.grey.shade600),
+                  Icon(
+                    Icons.check_circle_outline,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     '已经到底啦~杂库~',
                     style: TextStyle(
-                      color: Colors.grey.shade600,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 14,
                     ),
                   ),
@@ -123,13 +126,17 @@ class WorksGridView extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.info_outline,
-                            size: 18, color: Colors.grey.shade600),
+                        Icon(
+                          Icons.check_circle_outline,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           '已经到底啦~杂库~',
                           style: TextStyle(
-                            color: Colors.grey.shade600,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                             fontSize: 14,
                           ),
                         ),

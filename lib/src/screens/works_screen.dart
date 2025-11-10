@@ -117,56 +117,62 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        titleSpacing: 0,
-        title: Padding(
-          padding: const EdgeInsets.only(left: 16),
+        toolbarHeight: 48,
+        flexibleSpace: SafeArea(
           child: Row(
             children: [
-              // ===== 左侧模式切换按钮组 =====
-              _buildModeButtons(context, worksState),
-
-              const Spacer(), // 👈 推动右侧按钮到最右
+              // 第一列：可滚动的模式切换按钮
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  child: _buildModeButtons(context, worksState),
+                ),
+              ),
+              // 第二列：布局切换按钮
+              IconButton(
+                icon: _getLayoutIcon(worksState.layoutType),
+                iconSize: 22,
+                padding: const EdgeInsets.all(8),
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                onPressed: () =>
+                    ref.read(worksProvider.notifier).toggleLayoutType(),
+                tooltip: _getLayoutTooltip(worksState.layoutType),
+              ),
+              // 第三列：字幕筛选按钮
+              IconButton(
+                icon: Icon(
+                  worksState.subtitleFilter == 1
+                      ? Icons.closed_caption
+                      : Icons.closed_caption_disabled,
+                  color: worksState.subtitleFilter == 1
+                      ? Theme.of(context).colorScheme.primary
+                      : null,
+                ),
+                iconSize: 22,
+                padding: const EdgeInsets.all(8),
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                onPressed: () =>
+                    ref.read(worksProvider.notifier).toggleSubtitleFilter(),
+                tooltip: worksState.subtitleFilter == 1 ? '显示全部作品' : '仅显示带字幕作品',
+              ),
+              // 第四列：排序按钮
+              IconButton(
+                icon: Icon(
+                  Icons.sort,
+                  color: isRecommendMode ? Colors.grey : null,
+                ),
+                iconSize: 22,
+                padding: const EdgeInsets.all(8),
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                onPressed:
+                    isRecommendMode ? null : () => _showSortDialog(context),
+                tooltip: isRecommendMode ? '推荐模式不支持排序' : '排序',
+              ),
             ],
           ),
         ),
-        actions: [
-          IconButton(
-            icon: _getLayoutIcon(worksState.layoutType),
-            iconSize: 22,
-            padding: const EdgeInsets.all(8),
-            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-            onPressed: () =>
-                ref.read(worksProvider.notifier).toggleLayoutType(),
-            tooltip: _getLayoutTooltip(worksState.layoutType),
-          ),
-          IconButton(
-            icon: Icon(
-              worksState.subtitleFilter == 1
-                  ? Icons.closed_caption
-                  : Icons.closed_caption_disabled,
-              color: worksState.subtitleFilter == 1
-                  ? Theme.of(context).colorScheme.primary
-                  : null,
-            ),
-            iconSize: 22,
-            padding: const EdgeInsets.all(8),
-            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-            onPressed: () =>
-                ref.read(worksProvider.notifier).toggleSubtitleFilter(),
-            tooltip: worksState.subtitleFilter == 1 ? '显示全部作品' : '仅显示带字幕作品',
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.sort,
-              color: isRecommendMode ? Colors.grey : null,
-            ),
-            iconSize: 22,
-            padding: const EdgeInsets.all(8),
-            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-            onPressed: isRecommendMode ? null : () => _showSortDialog(context),
-            tooltip: isRecommendMode ? '推荐模式不支持排序' : '排序',
-          ),
-        ],
       ),
       body: _buildBody(worksState),
     );
@@ -225,6 +231,8 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
     required VoidCallback onTap,
     BorderRadius? borderRadius,
   }) {
+    final theme = Theme.of(context);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -234,8 +242,8 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           decoration: BoxDecoration(
             color: isSelected
-                ? Theme.of(context).colorScheme.primary
-                : Colors.grey.shade200,
+                ? theme.colorScheme.primary
+                : theme.colorScheme.surfaceContainerHighest,
             borderRadius: borderRadius ?? BorderRadius.zero,
           ),
           child: Row(
@@ -245,16 +253,16 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
                 icon,
                 size: 18,
                 color: isSelected
-                    ? Theme.of(context).colorScheme.onPrimary
-                    : Colors.grey.shade700,
+                    ? theme.colorScheme.onPrimary
+                    : theme.colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 3),
               Text(
                 label,
                 style: TextStyle(
                   color: isSelected
-                      ? Theme.of(context).colorScheme.onPrimary
-                      : Colors.grey.shade700,
+                      ? theme.colorScheme.onPrimary
+                      : theme.colorScheme.onSurfaceVariant,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
@@ -393,18 +401,21 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
               padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.info_outline,
-                      size: 18, color: Colors.grey.shade600),
-                  const SizedBox(width: 8),
-                  Text(
-                    '已经到底啦~杂库~',
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
+          children: [
+            Icon(
+              Icons.check_circle_outline,
+              size: 16,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '已经到底啦~杂库~',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 14,
+              ),
+            ),
+          ],
               ),
             ),
           ),
@@ -453,18 +464,21 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
                         vertical: 24, horizontal: 16),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.info_outline,
-                            size: 18, color: Colors.grey.shade600),
-                        const SizedBox(width: 8),
-                        Text(
-                          '已经到底啦~杂库~',
-                          style: TextStyle(
-                            color: Colors.grey.shade600,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
+          children: [
+            Icon(
+              Icons.check_circle_outline,
+              size: 16,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '已经到底啦~杂库~',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 14,
+              ),
+            ),
+          ],
                     ),
                   );
                 }

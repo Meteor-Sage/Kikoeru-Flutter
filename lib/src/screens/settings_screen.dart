@@ -35,43 +35,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               },
             ),
           ),
-          const SizedBox(height: 16),
-          // Settings sections
-          Card(
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.volume_up),
-                  title: const Text('音频设置'),
-                  subtitle: const Text('音量、音效等设置'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    // TODO: Navigate to audio settings
-                  },
-                ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.video_settings),
-                  title: const Text('视频设置'),
-                  subtitle: const Text('画质、播放速度等设置'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    // TODO: Navigate to video settings
-                  },
-                ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.download),
-                  title: const Text('下载设置'),
-                  subtitle: const Text('下载路径、网络设置等'),
-                  trailing: const Icon(Icons.arrow_forward_ios),
-                  onTap: () {
-                    // TODO: Navigate to download settings
-                  },
-                ),
-              ],
-            ),
-          ),
+
           const SizedBox(height: 16),
           Card(
             child: Column(

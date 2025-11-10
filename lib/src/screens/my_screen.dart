@@ -76,13 +76,13 @@ class _MyScreenState extends ConsumerState<MyScreen> {
             Icon(
               Icons.check_circle_outline,
               size: 16,
-              color: Colors.grey.shade600,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: 8),
             Text(
               '已经到底啦~杂库~',
               style: TextStyle(
-                color: Colors.grey.shade600,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 14,
               ),
             ),
@@ -352,8 +352,6 @@ class _MyScreenState extends ConsumerState<MyScreen> {
     BorderRadius? borderRadius,
   }) {
     final theme = Theme.of(context);
-    final primary = theme.colorScheme.primary;
-    final onPrimary = theme.colorScheme.onPrimary;
 
     return Material(
       color: Colors.transparent,
@@ -363,7 +361,9 @@ class _MyScreenState extends ConsumerState<MyScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           decoration: BoxDecoration(
-            color: isSelected ? primary : Colors.grey.shade200,
+            color: isSelected
+                ? theme.colorScheme.primary
+                : theme.colorScheme.surfaceContainerHighest,
             borderRadius: borderRadius ?? BorderRadius.zero,
           ),
           child: Row(
@@ -372,7 +372,9 @@ class _MyScreenState extends ConsumerState<MyScreen> {
               Icon(
                 icon,
                 size: 18,
-                color: isSelected ? onPrimary : Colors.grey.shade700,
+                color: isSelected
+                    ? theme.colorScheme.onPrimary
+                    : theme.colorScheme.onSurfaceVariant,
               ),
               const SizedBox(width: 3),
               Text(
@@ -380,7 +382,9 @@ class _MyScreenState extends ConsumerState<MyScreen> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: isSelected ? onPrimary : Colors.grey.shade700,
+                  color: isSelected
+                      ? theme.colorScheme.onPrimary
+                      : theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -442,29 +446,47 @@ class _MyScreenState extends ConsumerState<MyScreen> {
           ),
         ),
       ),
-      body: state.isLoading && state.works.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : state.error != null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('加载失败: ${state.error}',
-                          style: const TextStyle(color: Colors.redAccent)),
-                      const SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: () =>
-                            ref.read(myReviewsProvider.notifier).refresh(),
-                        child: const Text('重试'),
-                      ),
-                    ],
+      body: state.error != null
+          ? Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('加载失败: ${state.error}',
+                      style: const TextStyle(color: Colors.redAccent)),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () =>
+                        ref.read(myReviewsProvider.notifier).refresh(),
+                    child: const Text('重试'),
                   ),
-                )
-              : _buildBody(state),
+                ],
+              ),
+            )
+          : Stack(
+              children: [
+                _buildBody(state),
+                // 全局加载动画 - 在有数据且正在刷新时显示顶部进度条
+                if (state.isLoading && state.works.isNotEmpty)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: SizedBox(
+                      height: 3,
+                      child: const LinearProgressIndicator(),
+                    ),
+                  ),
+              ],
+            ),
     );
   }
 
   Widget _buildBody(MyReviewsState state) {
+    // 初始加载状态（没有数据时）
+    if (state.isLoading && state.works.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     switch (state.layoutType) {
       case MyReviewLayoutType.bigGrid:
         return _buildGridView(state, crossAxisCount: 2);

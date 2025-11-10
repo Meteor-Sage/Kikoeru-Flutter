@@ -1,12 +1,20 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'storage_service.dart';
 
 class CacheService {
-  // 缓存时长
-  static const Duration workDetailCacheDuration = Duration(hours: 24);
-  static const Duration fileCacheDuration = Duration(days: 7);
+  // 缓存时长（过期后自动删除）
+  static const Duration workDetailCacheDuration =
+      Duration(hours: 24); // 作品详情缓存24小时（SharedPreferences）
+  static const Duration workTracksCacheDuration =
+      Duration(hours: 24); // 作品文件列表缓存24小时（包含URL，避免token过期）
+  static const Duration fileCacheDuration =
+      Duration(days: 30); // 文件资源（PDF等）缓存30天（基于hash，不受URL变化影响）
+  static const Duration audioCacheDuration =
+      Duration(days: 30); // 音频文件缓存30天（基于hash，不受URL变化影响）
+  // 注意：图片缓存由 cached_network_image 包自己管理过期时间（默认7天）
 
   // 缓存大小上限配置键
   static const String cacheSizeLimitKey = 'cache_size_limit_mb';
@@ -23,7 +31,8 @@ class CacheService {
     final cacheKey = 'work_detail_$workId';
     final cacheTimeKey = 'work_detail_time_$workId';
 
-    await prefs.setString(cacheKey, workData.toString());
+    // 使用 JSON 编码保存完整数据
+    await prefs.setString(cacheKey, jsonEncode(workData));
     await prefs.setInt(cacheTimeKey, DateTime.now().millisecondsSinceEpoch);
   }
 
@@ -49,11 +58,146 @@ class CacheService {
       return null;
     }
 
-    // 返回缓存数据（这里简化处理，实际应该使用JSON）
-    return {'cached': true};
+    // 返回解码后的完整数据
+    try {
+      return jsonDecode(cachedData) as Map<String, dynamic>;
+    } catch (e) {
+      print('[Cache] 解码作品详情缓存失败: $e');
+      // 数据损坏，删除缓存
+      await prefs.remove(cacheKey);
+      await prefs.remove(cacheTimeKey);
+      return null;
+    }
   }
 
-  // 缓存文件资源（图片、PDF等）
+  // 清除指定作品的详情缓存（用于收藏状态更新后强制刷新）
+  static Future<void> invalidateWorkDetailCache(int workId) async {
+    final prefs = await StorageService.getPrefs();
+    final cacheKey = 'work_detail_$workId';
+    final cacheTimeKey = 'work_detail_time_$workId';
+
+    await prefs.remove(cacheKey);
+    await prefs.remove(cacheTimeKey);
+    print('[Cache] 已清除作品详情缓存: $workId');
+  }
+
+  // 缓存作品文件列表
+  static Future<void> cacheWorkTracks(int workId, String tracksJson) async {
+    final prefs = await StorageService.getPrefs();
+    final cacheKey = 'work_tracks_$workId';
+    final cacheTimeKey = 'work_tracks_time_$workId';
+
+    await prefs.setString(cacheKey, tracksJson);
+    await prefs.setInt(cacheTimeKey, DateTime.now().millisecondsSinceEpoch);
+  }
+
+  // 获取缓存的作品文件列表
+  static Future<String?> getCachedWorkTracks(int workId) async {
+    final prefs = await StorageService.getPrefs();
+    final cacheKey = 'work_tracks_$workId';
+    final cacheTimeKey = 'work_tracks_time_$workId';
+
+    final cachedData = prefs.getString(cacheKey);
+    final cacheTime = prefs.getInt(cacheTimeKey);
+
+    if (cachedData == null || cacheTime == null) {
+      return null;
+    }
+
+    // 检查是否过期
+    final cacheDateTime = DateTime.fromMillisecondsSinceEpoch(cacheTime);
+    if (DateTime.now().difference(cacheDateTime) > workTracksCacheDuration) {
+      // 过期，删除缓存
+      await prefs.remove(cacheKey);
+      await prefs.remove(cacheTimeKey);
+      return null;
+    }
+
+    return cachedData;
+  }
+
+  // 缓存音频文件（基于 hash）
+  static Future<String?> cacheAudioFile({
+    required String hash,
+    required String url,
+    required Dio dio,
+  }) async {
+    try {
+      final cacheDir = await _getAudioCacheDirectory();
+      // 使用 hash 作为文件名（替换路径分隔符为下划线）
+      final safeHash = hash.replaceAll('/', '_');
+      final fileName = '$safeHash.audio';
+      final filePath = '${cacheDir.path}/$fileName';
+
+      // 如果文件已存在，检查是否过期
+      final file = File(filePath);
+      if (await file.exists()) {
+        final lastModified = await file.lastModified();
+        if (DateTime.now().difference(lastModified) < audioCacheDuration) {
+          print('[Cache] 音频缓存命中: $hash');
+          return filePath; // 未过期，直接返回
+        }
+        // 过期，删除旧文件
+        print('[Cache] 音频缓存过期，重新下载: $hash');
+        await file.delete();
+      }
+
+      // 下载文件
+      print('[Cache] 下载音频文件: $hash');
+      await dio.download(url, filePath);
+
+      // 保存缓存元数据
+      final prefs = await StorageService.getPrefs();
+      final metaKey = 'audio_cache_meta_$safeHash';
+      await prefs.setInt(metaKey, DateTime.now().millisecondsSinceEpoch);
+
+      // 检查并自动清理缓存
+      await checkAndCleanCache();
+
+      return filePath;
+    } catch (e) {
+      print('[Cache] 缓存音频文件失败: $e');
+      return null;
+    }
+  }
+
+  // 获取缓存的音频文件（基于 hash）
+  static Future<String?> getCachedAudioFile(String hash) async {
+    try {
+      final cacheDir = await _getAudioCacheDirectory();
+      final safeHash = hash.replaceAll('/', '_');
+      final fileName = '$safeHash.audio';
+      final filePath = '${cacheDir.path}/$fileName';
+
+      final file = File(filePath);
+      if (await file.exists()) {
+        // 检查是否过期
+        final prefs = await StorageService.getPrefs();
+        final metaKey = 'audio_cache_meta_$safeHash';
+        final cacheTime = prefs.getInt(metaKey);
+
+        if (cacheTime != null) {
+          final cacheDateTime = DateTime.fromMillisecondsSinceEpoch(cacheTime);
+          if (DateTime.now().difference(cacheDateTime) < audioCacheDuration) {
+            print('[Cache] 使用缓存的音频文件: $hash');
+            return filePath; // 未过期
+          }
+        }
+
+        // 过期，删除
+        print('[Cache] 音频缓存过期: $hash');
+        await file.delete();
+        await prefs.remove(metaKey);
+      }
+
+      return null;
+    } catch (e) {
+      print('[Cache] 获取缓存音频文件失败: $e');
+      return null;
+    }
+  }
+
+  // 缓存文件资源（PDF等）
   static Future<String?> cacheFileResource({
     required int workId,
     required String hash,
@@ -63,7 +207,9 @@ class CacheService {
   }) async {
     try {
       final cacheDir = await _getCacheDirectory();
-      final fileName = '${workId}_${hash}_$fileType';
+      // 使用 hash 作为文件名（替换路径分隔符为下划线）
+      final safeHash = hash.replaceAll('/', '_');
+      final fileName = '${workId}_${safeHash}_$fileType';
       final filePath = '${cacheDir.path}/$fileName';
 
       // 如果文件已存在，检查是否过期
@@ -82,7 +228,7 @@ class CacheService {
 
       // 保存缓存元数据
       final prefs = await StorageService.getPrefs();
-      final metaKey = 'file_cache_meta_${workId}_$hash';
+      final metaKey = 'file_cache_meta_${workId}_$safeHash';
       await prefs.setInt(metaKey, DateTime.now().millisecondsSinceEpoch);
 
       // 检查并自动清理缓存
@@ -103,14 +249,15 @@ class CacheService {
   }) async {
     try {
       final cacheDir = await _getCacheDirectory();
-      final fileName = '${workId}_${hash}_$fileType';
+      final safeHash = hash.replaceAll('/', '_');
+      final fileName = '${workId}_${safeHash}_$fileType';
       final filePath = '${cacheDir.path}/$fileName';
 
       final file = File(filePath);
       if (await file.exists()) {
         // 检查是否过期
         final prefs = await StorageService.getPrefs();
-        final metaKey = 'file_cache_meta_${workId}_$hash';
+        final metaKey = 'file_cache_meta_${workId}_$safeHash';
         final cacheTime = prefs.getInt(metaKey);
 
         if (cacheTime != null) {
@@ -140,7 +287,8 @@ class CacheService {
   }) async {
     try {
       final cacheDir = await _getCacheDirectory();
-      final fileName = '${workId}_${hash}_text.txt';
+      final safeHash = hash.replaceAll('/', '_');
+      final fileName = '${workId}_${safeHash}_text.txt';
       final filePath = '${cacheDir.path}/$fileName';
 
       final file = File(filePath);
@@ -148,7 +296,7 @@ class CacheService {
 
       // 保存缓存元数据
       final prefs = await StorageService.getPrefs();
-      final metaKey = 'text_cache_meta_${workId}_$hash';
+      final metaKey = 'text_cache_meta_${workId}_$safeHash';
       await prefs.setInt(metaKey, DateTime.now().millisecondsSinceEpoch);
 
       // 检查并自动清理缓存
@@ -165,14 +313,15 @@ class CacheService {
   }) async {
     try {
       final cacheDir = await _getCacheDirectory();
-      final fileName = '${workId}_${hash}_text.txt';
+      final safeHash = hash.replaceAll('/', '_');
+      final fileName = '${workId}_${safeHash}_text.txt';
       final filePath = '${cacheDir.path}/$fileName';
 
       final file = File(filePath);
       if (await file.exists()) {
         // 检查是否过期
         final prefs = await StorageService.getPrefs();
-        final metaKey = 'text_cache_meta_${workId}_$hash';
+        final metaKey = 'text_cache_meta_${workId}_$safeHash';
         final cacheTime = prefs.getInt(metaKey);
 
         if (cacheTime != null) {
@@ -197,19 +346,27 @@ class CacheService {
   // 清除所有缓存
   static Future<void> clearAllCache() async {
     try {
-      // 清除文件缓存
+      // 1. 清除文件缓存（PDF、文本等）
       final cacheDir = await _getCacheDirectory();
       if (await cacheDir.exists()) {
         await cacheDir.delete(recursive: true);
       }
 
-      // 清除 SharedPreferences 中的缓存元数据
+      // 2. 清除音频缓存
+      await clearAudioCache();
+
+      // 3. 清除图片缓存
+      await clearImageCache();
+
+      // 4. 清除 SharedPreferences 中的缓存元数据
       final prefs = await StorageService.getPrefs();
       final keys = prefs.getKeys();
       for (final key in keys) {
         if (key.startsWith('work_detail_') ||
+            key.startsWith('work_tracks_') ||
             key.startsWith('file_cache_meta_') ||
-            key.startsWith('text_cache_meta_')) {
+            key.startsWith('text_cache_meta_') ||
+            key.startsWith('audio_cache_meta_')) {
           await prefs.remove(key);
         }
       }
@@ -221,20 +378,79 @@ class CacheService {
     }
   }
 
+  // 清除音频缓存
+  static Future<void> clearAudioCache() async {
+    try {
+      // 1. 清除自定义音频缓存（基于 hash）
+      final customAudioCacheDir = await _getAudioCacheDirectory();
+      if (await customAudioCacheDir.exists()) {
+        await customAudioCacheDir.delete(recursive: true);
+        print('[Cache] 自定义音频缓存已清除');
+      }
+
+      // 2. 清除 SharedPreferences 中的音频缓存元数据
+      final prefs = await StorageService.getPrefs();
+      final keys = prefs.getKeys();
+      for (final key in keys) {
+        if (key.startsWith('audio_cache_meta_')) {
+          await prefs.remove(key);
+        }
+      }
+
+      // 3. 清除 just_audio 的旧缓存（如果存在）
+      final appCacheDir = await getApplicationCacheDirectory();
+      final justAudioCacheDir =
+          Directory('${appCacheDir.path}/just_audio_cache');
+      if (await justAudioCacheDir.exists()) {
+        await justAudioCacheDir.delete(recursive: true);
+        print('[Cache] just_audio 缓存已清除');
+      }
+    } catch (e) {
+      print('[Cache] 清除音频缓存失败: $e');
+    }
+  }
+
+  // 清除图片缓存
+  static Future<void> clearImageCache() async {
+    try {
+      final appCacheDir = await getApplicationCacheDirectory();
+      final imageCacheDir = Directory('${appCacheDir.path}/libCachedImageData');
+
+      if (await imageCacheDir.exists()) {
+        await imageCacheDir.delete(recursive: true);
+        print('[Cache] 图片缓存已清除');
+      }
+    } catch (e) {
+      print('[Cache] 清除图片缓存失败: $e');
+    }
+  }
+
   // 获取缓存大小
   static Future<int> getCacheSize() async {
     try {
-      final cacheDir = await _getCacheDirectory();
-      if (!await cacheDir.exists()) {
-        return 0;
-      }
-
       int totalSize = 0;
-      await for (final entity in cacheDir.list(recursive: true)) {
-        if (entity is File) {
-          totalSize += await entity.length();
+
+      // 1. 获取 Kikoeru 自定义缓存大小（PDF、文本等）
+      final cacheDir = await _getCacheDirectory();
+      if (await cacheDir.exists()) {
+        await for (final entity in cacheDir.list(recursive: true)) {
+          if (entity is File) {
+            totalSize += await entity.length();
+          }
         }
       }
+
+      // 2. 获取 just_audio 的音频缓存大小
+      final audioCacheSize = await _getAudioCacheSize();
+      totalSize += audioCacheSize;
+
+      // 3. 获取 CachedNetworkImage 的图片缓存大小
+      final imageCacheSize = await _getImageCacheSize();
+      totalSize += imageCacheSize;
+
+      // 4. 获取 SharedPreferences 的作品详情缓存大小（估算）
+      final prefsSize = await _getSharedPreferencesCacheSize();
+      totalSize += prefsSize;
 
       return totalSize;
     } catch (e) {
@@ -243,10 +459,115 @@ class CacheService {
     }
   }
 
+  // 获取音频缓存目录大小
+  static Future<int> _getAudioCacheSize() async {
+    try {
+      int totalSize = 0;
+
+      // 1. 获取自定义音频缓存大小（基于 hash）
+      final customAudioCacheDir = await _getAudioCacheDirectory();
+      if (await customAudioCacheDir.exists()) {
+        await for (final entity in customAudioCacheDir.list(recursive: true)) {
+          if (entity is File) {
+            totalSize += await entity.length();
+          }
+        }
+      }
+
+      // 2. 获取 just_audio 的旧缓存大小（如果存在）
+      final appCacheDir = await getApplicationCacheDirectory();
+      final justAudioCacheDir =
+          Directory('${appCacheDir.path}/just_audio_cache');
+      if (await justAudioCacheDir.exists()) {
+        await for (final entity in justAudioCacheDir.list(recursive: true)) {
+          if (entity is File) {
+            totalSize += await entity.length();
+          }
+        }
+      }
+
+      return totalSize;
+    } catch (e) {
+      print('[Cache] 获取音频缓存大小失败: $e');
+      return 0;
+    }
+  }
+
+  // 获取图片缓存目录大小
+  static Future<int> _getImageCacheSize() async {
+    try {
+      // cached_network_image 使用 flutter_cache_manager 管理缓存
+      // 默认缓存目录名为 libCachedImageData
+      final appCacheDir = await getApplicationCacheDirectory();
+      final imageCacheDir = Directory('${appCacheDir.path}/libCachedImageData');
+
+      if (!await imageCacheDir.exists()) {
+        return 0;
+      }
+
+      int totalSize = 0;
+      await for (final entity in imageCacheDir.list(recursive: true)) {
+        if (entity is File) {
+          totalSize += await entity.length();
+        }
+      }
+
+      return totalSize;
+    } catch (e) {
+      print('[Cache] 获取图片缓存大小失败: $e');
+      return 0;
+    }
+  }
+
+  // 获取 SharedPreferences 缓存大小（估算）
+  static Future<int> _getSharedPreferencesCacheSize() async {
+    try {
+      final prefs = await StorageService.getPrefs();
+      final keys = prefs.getKeys();
+      int estimatedSize = 0;
+
+      for (final key in keys) {
+        // 只统计缓存相关的键
+        if (key.startsWith('work_detail_') ||
+            key.startsWith('work_tracks_') ||
+            key.startsWith('file_cache_meta_') ||
+            key.startsWith('text_cache_meta_') ||
+            key.startsWith('audio_cache_meta_')) {
+          // 估算：键名长度 + 值长度
+          estimatedSize += key.length;
+
+          final value = prefs.get(key);
+          if (value is String) {
+            estimatedSize += value.length;
+          } else if (value is int) {
+            estimatedSize += 8; // int 通常 8 字节
+          }
+        }
+      }
+
+      return estimatedSize;
+    } catch (e) {
+      print('[Cache] 获取 SharedPreferences 缓存大小失败: $e');
+      return 0;
+    }
+  }
+
   // 获取缓存目录
   static Future<Directory> _getCacheDirectory() async {
     final appCacheDir = await getApplicationCacheDirectory();
     final cacheDir = Directory('${appCacheDir.path}/kikoeru_cache');
+
+    if (!await cacheDir.exists()) {
+      await cacheDir.create(recursive: true);
+    }
+
+    return cacheDir;
+  }
+
+  // 获取音频缓存目录
+  static Future<Directory> _getAudioCacheDirectory() async {
+    final appCacheDir = await getApplicationCacheDirectory();
+    final cacheDir = Directory('${appCacheDir.path}/kikoeru_audio_cache');
 
     if (!await cacheDir.exists()) {
       await cacheDir.create(recursive: true);
@@ -291,6 +612,10 @@ class CacheService {
             lastCleanCheckTimeKey, DateTime.now().millisecondsSinceEpoch);
       }
 
+      // 1. 先清理过期的缓存文件（基于时间）
+      await _cleanExpiredCacheFiles();
+
+      // 2. 再检查大小，如果超过上限则清理旧文件（基于大小）
       final currentSize = await getCacheSize();
       final limitMB = await getCacheSizeLimit();
       final limitBytes = limitMB * 1024 * 1024;
@@ -305,22 +630,177 @@ class CacheService {
     }
   }
 
+  // 清理过期的缓存文件（基于时间）
+  static Future<void> _cleanExpiredCacheFiles() async {
+    try {
+      final now = DateTime.now();
+      int deletedCount = 0;
+
+      // 1. 清理过期的自定义缓存文件（PDF、文本等）
+      final cacheDir = await _getCacheDirectory();
+      if (await cacheDir.exists()) {
+        await for (final entity in cacheDir.list(recursive: true)) {
+          if (entity is File) {
+            final lastModified = await entity.lastModified();
+            if (now.difference(lastModified) > fileCacheDuration) {
+              await entity.delete();
+              deletedCount++;
+
+              // 删除对应的元数据
+              final fileName = entity.path.split(Platform.pathSeparator).last;
+              await _removeMetadataForFile(fileName);
+            }
+          }
+        }
+      }
+
+      // 2. 清理过期的音频缓存文件（基于 hash）
+      final customAudioCacheDir = await _getAudioCacheDirectory();
+      if (await customAudioCacheDir.exists()) {
+        await for (final entity in customAudioCacheDir.list(recursive: true)) {
+          if (entity is File) {
+            final lastModified = await entity.lastModified();
+            if (now.difference(lastModified) > audioCacheDuration) {
+              await entity.delete();
+              deletedCount++;
+
+              // 删除对应的元数据
+              final fileName = entity.path.split(Platform.pathSeparator).last;
+              final safeHash = fileName.replaceAll('.audio', '');
+              final prefs = await StorageService.getPrefs();
+              await prefs.remove('audio_cache_meta_$safeHash');
+            }
+          }
+        }
+      }
+
+      // 清理旧的 just_audio 缓存（如果存在）
+      final appCacheDir = await getApplicationCacheDirectory();
+      final audioCacheDir = Directory('${appCacheDir.path}/just_audio_cache');
+      if (await audioCacheDir.exists()) {
+        await for (final entity in audioCacheDir.list(recursive: true)) {
+          if (entity is File) {
+            final lastModified = await entity.lastModified();
+            if (now.difference(lastModified) > audioCacheDuration) {
+              await entity.delete();
+              deletedCount++;
+            }
+          }
+        }
+      }
+
+      // 3. 清理过期的 SharedPreferences 作品详情缓存
+      final prefsDeletedCount = await _cleanExpiredSharedPreferences();
+      deletedCount += prefsDeletedCount;
+
+      // 4. 图片缓存由 cached_network_image 自己管理过期时间，不需要手动清理
+
+      if (deletedCount > 0) {
+        print('[Cache] 已清理 $deletedCount 个过期缓存项');
+      }
+    } catch (e) {
+      print('[Cache] 清理过期缓存文件失败: $e');
+    }
+  }
+
+  // 清理过期的 SharedPreferences 缓存
+  static Future<int> _cleanExpiredSharedPreferences() async {
+    try {
+      final prefs = await StorageService.getPrefs();
+      final keys = prefs.getKeys();
+      final now = DateTime.now();
+      int deletedCount = 0;
+
+      for (final key in keys) {
+        // 检查作品详情缓存是否过期
+        if (key.startsWith('work_detail_time_')) {
+          final cacheTime = prefs.getInt(key);
+          if (cacheTime != null) {
+            final cacheDateTime =
+                DateTime.fromMillisecondsSinceEpoch(cacheTime);
+            if (now.difference(cacheDateTime) > workDetailCacheDuration) {
+              // 过期，删除缓存数据和时间戳
+              final workId = key.replaceFirst('work_detail_time_', '');
+              await prefs.remove('work_detail_$workId');
+              await prefs.remove(key);
+              deletedCount += 2;
+            }
+          }
+        }
+        // 检查作品文件列表缓存是否过期
+        else if (key.startsWith('work_tracks_time_')) {
+          final cacheTime = prefs.getInt(key);
+          if (cacheTime != null) {
+            final cacheDateTime =
+                DateTime.fromMillisecondsSinceEpoch(cacheTime);
+            if (now.difference(cacheDateTime) > workTracksCacheDuration) {
+              // 过期，删除缓存数据和时间戳
+              final workId = key.replaceFirst('work_tracks_time_', '');
+              await prefs.remove('work_tracks_$workId');
+              await prefs.remove(key);
+              deletedCount += 2;
+            }
+          }
+        }
+        // 文件和文本的元数据会在清理文件时一起删除，这里不需要单独处理
+      }
+
+      return deletedCount;
+    } catch (e) {
+      print('[Cache] 清理过期 SharedPreferences 失败: $e');
+      return 0;
+    }
+  }
+
   // 清理旧缓存文件，直到降低到上限的80%
   static Future<void> _cleanOldCacheFiles(int limitBytes) async {
     try {
-      final cacheDir = await _getCacheDirectory();
-      if (!await cacheDir.exists()) {
-        return;
-      }
-
       final targetSize = (limitBytes * 0.8).toInt();
 
-      // 获取所有缓存文件及其修改时间
+      // 收集所有缓存文件（包括 Kikoeru 缓存、音频缓存和图片缓存）
       final List<MapEntry<File, DateTime>> fileList = [];
-      await for (final entity in cacheDir.list(recursive: true)) {
-        if (entity is File) {
-          final lastModified = await entity.lastModified();
-          fileList.add(MapEntry(entity, lastModified));
+
+      // 1. 收集 Kikoeru 自定义缓存文件（PDF、文本等）
+      final cacheDir = await _getCacheDirectory();
+      if (await cacheDir.exists()) {
+        await for (final entity in cacheDir.list(recursive: true)) {
+          if (entity is File) {
+            final lastModified = await entity.lastModified();
+            fileList.add(MapEntry(entity, lastModified));
+          }
+        }
+      }
+
+      // 2. 收集音频缓存文件（自定义音频缓存 + just_audio 旧缓存）
+      final customAudioCacheDir = await _getAudioCacheDirectory();
+      if (await customAudioCacheDir.exists()) {
+        await for (final entity in customAudioCacheDir.list(recursive: true)) {
+          if (entity is File) {
+            final lastModified = await entity.lastModified();
+            fileList.add(MapEntry(entity, lastModified));
+          }
+        }
+      }
+
+      final appCacheDir = await getApplicationCacheDirectory();
+      final audioCacheDir = Directory('${appCacheDir.path}/just_audio_cache');
+      if (await audioCacheDir.exists()) {
+        await for (final entity in audioCacheDir.list(recursive: true)) {
+          if (entity is File) {
+            final lastModified = await entity.lastModified();
+            fileList.add(MapEntry(entity, lastModified));
+          }
+        }
+      }
+
+      // 3. 收集图片缓存文件
+      final imageCacheDir = Directory('${appCacheDir.path}/libCachedImageData');
+      if (await imageCacheDir.exists()) {
+        await for (final entity in imageCacheDir.list(recursive: true)) {
+          if (entity is File) {
+            final lastModified = await entity.lastModified();
+            fileList.add(MapEntry(entity, lastModified));
+          }
         }
       }
 
@@ -345,9 +825,16 @@ class CacheService {
         currentSize -= fileSize;
         deletedCount++;
 
-        // 删除对应的元数据
+        // 只为 Kikoeru 自定义缓存删除元数据
         final fileName = entry.key.path.split(Platform.pathSeparator).last;
-        await _removeMetadataForFile(fileName);
+        if (entry.key.path.contains('kikoeru_cache')) {
+          await _removeMetadataForFile(fileName);
+        } else if (entry.key.path.contains('kikoeru_audio_cache')) {
+          // 删除音频缓存元数据
+          final safeHash = fileName.replaceAll('.audio', '');
+          final prefs = await StorageService.getPrefs();
+          await prefs.remove('audio_cache_meta_$safeHash');
+        }
       }
 
       print(
@@ -363,15 +850,15 @@ class CacheService {
       final prefs = await StorageService.getPrefs();
 
       // 从文件名解析出 workId 和 hash
-      // 文件名格式: {workId}_{hash}_{fileType}
+      // 文件名格式: {workId}_{safeHash}_{fileType}
       final parts = fileName.split('_');
       if (parts.length >= 2) {
         final workId = parts[0];
-        final hash = parts[1];
+        final safeHash = parts[1];
 
         // 删除可能的元数据键
-        await prefs.remove('file_cache_meta_${workId}_$hash');
-        await prefs.remove('text_cache_meta_${workId}_$hash');
+        await prefs.remove('file_cache_meta_${workId}_$safeHash');
+        await prefs.remove('text_cache_meta_${workId}_$safeHash');
       }
     } catch (e) {
       print('[Cache] 删除元数据失败: $e');

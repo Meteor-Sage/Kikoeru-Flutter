@@ -170,8 +170,7 @@ class MyReviewsNotifier extends StateNotifier<MyReviewsState> {
   }
 
   void changeFilter(MyReviewFilter filter) {
-    state = state.copyWith(
-        filter: filter, currentPage: 1, works: [], totalCount: 0);
+    state = state.copyWith(filter: filter, currentPage: 1, totalCount: 0);
     load(refresh: true);
   }
 

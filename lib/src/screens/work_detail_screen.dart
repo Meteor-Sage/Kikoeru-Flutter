@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/work.dart';
 import '../providers/auth_provider.dart';
 import '../providers/my_reviews_provider.dart';
+import '../services/storage_service.dart';
 import '../widgets/file_explorer_widget.dart';
 import '../widgets/global_audio_player_wrapper.dart';
 import '../widgets/tag_chip.dart';
@@ -96,15 +97,70 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
       final response = await apiService.getWork(widget.work.id);
       final detailedWork = Work.fromJson(response);
 
-      setState(() {
-        _detailedWork = detailedWork;
-        // 更新收藏状态（从详情API响应中获取最新状态）
-        _currentProgress = detailedWork.progress;
-      });
+      if (mounted) {
+        setState(() {
+          _detailedWork = detailedWork;
+          // 更新收藏状态（从详情API响应中获取最新状态）
+          _currentProgress = detailedWork.progress;
+        });
+      }
     } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = '加载失败: $e';
+        });
+      }
+    }
+  }
+
+  // 下拉刷新：强制从网络获取最新数据
+  Future<void> _refreshWorkDetail() async {
+    try {
       setState(() {
-        _errorMessage = '加载失败: $e';
+        _errorMessage = null;
       });
+
+      final apiService = ref.read(kikoeruApiServiceProvider);
+
+      // 先清除缓存，确保获取最新数据
+      final prefs = await StorageService.getPrefs();
+      await prefs.remove('work_detail_${widget.work.id}');
+      await prefs.remove('work_detail_time_${widget.work.id}');
+
+      // 从网络获取最新数据
+      final response = await apiService.getWork(widget.work.id);
+      final detailedWork = Work.fromJson(response);
+
+      if (mounted) {
+        setState(() {
+          _detailedWork = detailedWork;
+          _currentProgress = detailedWork.progress;
+        });
+
+        // 显示刷新成功提示
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('刷新成功'),
+            duration: Duration(seconds: 1),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = '刷新失败: $e';
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('刷新失败: $e'),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -365,342 +421,363 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
     // 使用已有的work信息（来自列表），详细信息加载后再更新
     final work = _detailedWork ?? widget.work;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 封面图片 - 使用Stack叠加实现无感切换
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            child: Hero(
-              tag: 'work_cover_${widget.work.id}',
-              child: Material(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-                clipBehavior: Clip.antiAlias,
-                child: Container(
-                  width: double.infinity,
-                  constraints: const BoxConstraints(
-                    maxHeight: 500,
-                  ),
-                  child: Stack(
-                    fit: StackFit.passthrough,
-                    children: [
-                      // 底层：缓存图片，始终显示
-                      CachedNetworkImage(
-                        imageUrl: work.getCoverImageUrl(host, token: token),
-                        cacheKey: 'work_cover_${widget.work.id}',
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          height: 300,
-                          color: Colors.grey[300],
-                          child: const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          height: 300,
-                          color: Colors.grey[300],
-                          child: const Icon(
-                            Icons.image_not_supported,
-                            size: 64,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ),
-                      // 顶层：高清图，加载完成后覆盖
-                      if (_showHDImage && _hdImageProvider != null)
-                        Image(
-                          image: _hdImageProvider!,
+    return RefreshIndicator(
+      onRefresh: _refreshWorkDetail,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(0),
+        physics: const AlwaysScrollableScrollPhysics(), // 确保即使内容不足也能下拉
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 封面图片 - 使用Stack叠加实现无感切换
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              child: Hero(
+                tag: 'work_cover_${widget.work.id}',
+                child: Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  clipBehavior: Clip.antiAlias,
+                  child: Container(
+                    width: double.infinity,
+                    constraints: const BoxConstraints(
+                      maxHeight: 500,
+                    ),
+                    child: Stack(
+                      fit: StackFit.passthrough,
+                      children: [
+                        // 底层：缓存图片，始终显示
+                        CachedNetworkImage(
+                          imageUrl: work.getCoverImageUrl(host, token: token),
+                          cacheKey: 'work_cover_${widget.work.id}',
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return const SizedBox.shrink(); // 出错时不显示，保持底层缓存图
-                          },
+                          placeholder: (context, url) => Container(
+                            height: 300,
+                            color: Colors.grey[300],
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            height: 300,
+                            color: Colors.grey[300],
+                            child: const Icon(
+                              Icons.image_not_supported,
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                          ),
                         ),
-                    ],
+                        // 顶层：高清图，加载完成后覆盖
+                        if (_showHDImage && _hdImageProvider != null)
+                          Image(
+                            image: _hdImageProvider!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const SizedBox.shrink(); // 出错时不显示，保持底层缓存图
+                            },
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
 
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 标题（可长按复制）+ 内联字幕图标（紧跟标题最后一个字，不换行）
-                GestureDetector(
-                  onLongPress: () => _copyToClipboard(work.title, '标题'),
-                  child: Text.rich(
-                    TextSpan(
-                      children: [
-                        TextSpan(text: work.title),
-                        if (work.hasSubtitle == true)
-                          WidgetSpan(
-                            alignment: PlaceholderAlignment.baseline,
-                            baseline: TextBaseline.alphabetic,
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 6),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  'CC',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    height: 1.1,
-                                    letterSpacing: 0.5,
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 标题（可长按复制）+ 内联字幕图标（紧跟标题最后一个字，不换行）
+                  GestureDetector(
+                    onLongPress: () => _copyToClipboard(work.title, '标题'),
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(text: work.title),
+                          if (work.hasSubtitle == true)
+                            WidgetSpan(
+                              alignment: PlaceholderAlignment.baseline,
+                              baseline: TextBaseline.alphabetic,
+                              child: Padding(
+                                padding: const EdgeInsets.only(left: 6),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'CC',
+                                    style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onPrimary,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      height: 1.1,
+                                      letterSpacing: 0.5,
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
+                        ],
+                      ),
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
                           ),
-                      ],
+                      textAlign: TextAlign.start,
+                      softWrap: true,
                     ),
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                    textAlign: TextAlign.start,
-                    softWrap: true,
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // 显示加载状态或错误信息
-                if (_errorMessage != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Row(
-                      children: [
-                        Icon(Icons.error_outline,
-                            size: 16,
-                            color: Theme.of(context).colorScheme.error),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.error,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: _loadWorkDetail,
-                          child:
-                              const Text('重试', style: TextStyle(fontSize: 12)),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // 评分信息 价格和销售信息
-                Row(
-                  children: [
-                    // 评分信息 - 总是显示
-                    const Icon(Icons.star, color: Colors.amber, size: 20),
-                    const SizedBox(width: 4),
-                    Text(
-                      (work.rateAverage != null &&
-                              work.rateCount != null &&
-                              work.rateCount! > 0)
-                          ? work.rateAverage!.toStringAsFixed(1)
-                          : '-',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '(${work.rateCount ?? 0})',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      ),
-                    ),
-
-                    // 时长信息
-                    if (work.duration != null && work.duration! > 0) ...[
-                      const SizedBox(width: 16),
-                      const Icon(Icons.access_time,
-                          color: Colors.blue, size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatDuration(work.duration!),
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.blue[700],
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                      ),
-                    ],
-
-                    // 价格信息
-                    if (work.price != null) ...[
-                      const SizedBox(width: 16),
-                      Text(
-                        '${work.price} 日元',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.red[700],
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
-                            ),
-                      ),
-                      const SizedBox(width: 16),
-                    ],
-
-                    // 销售数量信息
-                    if (work.dlCount != null && work.dlCount! > 0) ...[
-                      Text(
-                        '售出：${_formatNumber(work.dlCount!)}',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey[600],
-                              fontSize: 12,
-                            ),
-                      ),
-                    ],
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // 社团和声优信息
-                if ((work.name != null && work.name!.isNotEmpty) ||
-                    (work.vas != null && work.vas!.isNotEmpty)) ...[
-                  Text(
-                    '社团 | 声优',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
                   ),
                   const SizedBox(height: 8),
 
-                  // 社团和声优放在同一行
-                  Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
-                    children: [
-                      // 社团名称标签
-                      if (work.name != null && work.name!.isNotEmpty)
-                        GestureDetector(
-                          onLongPress: () => _copyToClipboard(work.name!, '社团'),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .secondaryContainer,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
+                  // 显示加载状态或错误信息
+                  if (_errorMessage != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        children: [
+                          Icon(Icons.error_outline,
+                              size: 16,
+                              color: Theme.of(context).colorScheme.error),
+                          const SizedBox(width: 8),
+                          Expanded(
                             child: Text(
-                              work.name!,
+                              _errorMessage!,
                               style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
                                 fontSize: 12,
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSecondaryContainer,
-                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
+                          TextButton(
+                            onPressed: _loadWorkDetail,
+                            child: const Text('重试',
+                                style: TextStyle(fontSize: 12)),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // 评分信息 价格和销售信息
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      // 评分信息 - 总是显示
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.star, color: Colors.amber, size: 20),
+                          const SizedBox(width: 4),
+                          Text(
+                            (work.rateAverage != null &&
+                                    work.rateCount != null &&
+                                    work.rateCount! > 0)
+                                ? work.rateAverage!.toStringAsFixed(1)
+                                : '-',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '(${work.rateCount ?? 0})',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // 时长信息
+                      if (work.duration != null && work.duration! > 0)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.access_time,
+                                color: Colors.blue, size: 16),
+                            const SizedBox(width: 4),
+                            Text(
+                              _formatDuration(work.duration!),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: Colors.blue[700],
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                            ),
+                          ],
                         ),
 
-                      // 声优列表
-                      if (work.vas != null && work.vas!.isNotEmpty)
-                        ...work.vas!.map((va) {
-                          return VaChip(
-                            va: va,
-                            fontSize: 12,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
-                            borderRadius: 6,
-                            fontWeight: FontWeight.w500,
-                            onLongPress: () => _copyToClipboard(va.name, '声优'),
-                          );
-                        }).toList(),
+                      // 价格信息
+                      if (work.price != null)
+                        Text(
+                          '${work.price} 日元',
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.red[700],
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                        ),
+
+                      // 销售数量信息
+                      if (work.dlCount != null && work.dlCount! > 0)
+                        Text(
+                          '售出：${_formatNumber(work.dlCount!)}',
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                        ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                ],
 
-                // 标签信息
-                if (work.tags != null && work.tags!.isNotEmpty) ...[
-                  Text(
-                    '标签',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
-                    children: work.tags!
-                        .map((tag) => TagChip(
-                              tag: tag,
+                  const SizedBox(height: 16),
+
+                  // 社团和声优信息
+                  if ((work.name != null && work.name!.isNotEmpty) ||
+                      (work.vas != null && work.vas!.isNotEmpty)) ...[
+                    Text(
+                      '社团 | 声优',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // 社团和声优放在同一行
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: [
+                        // 社团名称标签
+                        if (work.name != null && work.name!.isNotEmpty)
+                          GestureDetector(
+                            onLongPress: () =>
+                                _copyToClipboard(work.name!, '社团'),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .secondaryContainer,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                work.name!,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSecondaryContainer,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                        // 声优列表
+                        if (work.vas != null && work.vas!.isNotEmpty)
+                          ...work.vas!.map((va) {
+                            return VaChip(
+                              va: va,
                               fontSize: 12,
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 4),
                               borderRadius: 6,
                               fontWeight: FontWeight.w500,
                               onLongPress: () =>
-                                  _copyToClipboard(tag.name, '标签'),
-                            ))
-                        .toList(),
-                  ),
-                  const SizedBox(height: 16),
-                ],
+                                  _copyToClipboard(va.name, '声优'),
+                            );
+                          }).toList(),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
 
-                // 发布日期
-                if (work.release != null) ...[
+                  // 标签信息
+                  if (work.tags != null && work.tags!.isNotEmpty) ...[
+                    Text(
+                      '标签',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: work.tags!
+                          .map((tag) => TagChip(
+                                tag: tag,
+                                fontSize: 12,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                borderRadius: 6,
+                                fontWeight: FontWeight.w500,
+                                onLongPress: () =>
+                                    _copyToClipboard(tag.name, '标签'),
+                              ))
+                          .toList(),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // 发布日期
+                  if (work.release != null) ...[
+                    Text(
+                      '发布日期',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      work.release!.split('T')[0],
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontSize: 14,
+                          ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // 播放按钮 - 替换为文件浏览器
                   Text(
-                    '发布日期',
+                    '资源文件',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                         ),
                   ),
                   const SizedBox(height: 8),
-                  Text(
-                    work.release!.split('T')[0],
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontSize: 14,
-                        ),
-                  ),
-                  const SizedBox(height: 24),
+
+                  // 文件浏览器组件 - 移除固定高度，让它自由展开
+                  FileExplorerWidget(work: work),
                 ],
-
-                // 播放按钮 - 替换为文件浏览器
-                Text(
-                  '资源文件',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                ),
-                const SizedBox(height: 8),
-
-                // 文件浏览器组件 - 移除固定高度，让它自由展开
-                FileExplorerWidget(work: work),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

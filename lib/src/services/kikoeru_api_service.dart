@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:convert';
 import '../models/work.dart';
+import 'cache_service.dart';
 
 class KikoeruApiService {
   static const String remoteHost = 'https://api.asmr-200.com'; //api.asmr.one
@@ -362,8 +364,22 @@ class KikoeruApiService {
 
   Future<Map<String, dynamic>> getWork(int workId) async {
     try {
+      // 1. 先检查缓存
+      final cachedData = await CacheService.getCachedWorkDetail(workId);
+      if (cachedData != null) {
+        print('[API] 作品详情缓存命中: $workId');
+        return cachedData;
+      }
+
+      // 2. 缓存未命中，从网络获取
+      print('[API] 作品详情缓存未命中，从网络获取: $workId');
       final response = await _dio.get('/api/work/$workId');
-      return response.data;
+      final data = response.data as Map<String, dynamic>;
+
+      // 3. 保存到缓存
+      await CacheService.cacheWorkDetail(workId, data);
+
+      return data;
     } catch (e) {
       throw KikoeruApiException('Failed to get work', e);
     }
@@ -519,8 +535,22 @@ class KikoeruApiService {
   // Tracks API
   Future<List<dynamic>> getWorkTracks(int workId) async {
     try {
+      // 1. 尝试从缓存获取
+      final cachedJson = await CacheService.getCachedWorkTracks(workId);
+      if (cachedJson != null) {
+        print('[API] 从缓存加载作品文件列表: $workId');
+        return jsonDecode(cachedJson) as List<dynamic>;
+      }
+
+      // 2. 缓存未命中，从网络获取
       final response = await _dio.get('/api/tracks/$workId');
-      return response.data;
+      final tracks = response.data as List<dynamic>;
+
+      // 3. 保存到缓存
+      await CacheService.cacheWorkTracks(workId, jsonEncode(tracks));
+      print('[API] 已缓存作品文件列表: $workId');
+
+      return tracks;
     } catch (e) {
       throw KikoeruApiException('Failed to get tracks', e);
     }
@@ -609,6 +639,10 @@ class KikoeruApiService {
         '/api/review',
         data: data,
       );
+
+      // 更新成功后清除该作品的详情缓存，确保下次获取最新状态
+      await CacheService.invalidateWorkDetailCache(workId);
+
       return response.data;
     } catch (e) {
       throw KikoeruApiException('Failed to update review progress', e);
@@ -622,6 +656,9 @@ class KikoeruApiService {
         '/api/review',
         queryParameters: {'work_id': workId},
       );
+
+      // 删除成功后清除该作品的详情缓存，确保下次获取最新状态
+      await CacheService.invalidateWorkDetailCache(workId);
     } catch (e) {
       throw KikoeruApiException('Failed to delete review', e);
     }
