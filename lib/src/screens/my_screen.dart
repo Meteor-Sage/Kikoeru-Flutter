@@ -12,16 +12,24 @@ class MyScreen extends ConsumerStatefulWidget {
   ConsumerState<MyScreen> createState() => _MyScreenState();
 }
 
-class _MyScreenState extends ConsumerState<MyScreen> {
+class _MyScreenState extends ConsumerState<MyScreen>
+    with AutomaticKeepAliveClientMixin {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _pageController = TextEditingController();
   bool _showPagination = false;
 
   @override
+  bool get wantKeepAlive => true; // 保持状态不被销毁
+
+  @override
   void initState() {
     super.initState();
+    // 只在首次加载时获取数据，如果已有数据则不重新加载
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(myReviewsProvider.notifier).load(refresh: true);
+      final myState = ref.read(myReviewsProvider);
+      if (myState.works.isEmpty) {
+        ref.read(myReviewsProvider.notifier).load(refresh: true);
+      }
     });
     _scrollController.addListener(_onScroll);
   }
@@ -396,6 +404,7 @@ class _MyScreenState extends ConsumerState<MyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // 必须调用以保持状态
     final state = ref.watch(myReviewsProvider);
 
     return Scaffold(

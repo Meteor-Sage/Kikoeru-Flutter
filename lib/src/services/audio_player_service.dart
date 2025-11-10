@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_service/audio_service.dart';
-import 'package:dio/dio.dart';
 
 import '../models/audio_track.dart';
 import 'cache_service.dart';
+import 'caching_stream_audio_source.dart';
 
 class AudioPlayerService {
   static AudioPlayerService? _instance;
@@ -123,31 +123,33 @@ class AudioPlayerService {
   Future<void> _loadTrack(AudioTrack track) async {
     try {
       String? audioFilePath;
+      bool loaded = false;
 
       // 如果有 hash，尝试使用缓存
       if (track.hash != null && track.hash!.isNotEmpty) {
-        // 1. 先检查缓存
         audioFilePath = await CacheService.getCachedAudioFile(track.hash!);
 
-        // 2. 如果没有缓存，下载并缓存
-        if (audioFilePath == null) {
-          print('[Audio] 缓存未命中，下载音频: ${track.hash}');
-          final dio = Dio();
-          audioFilePath = await CacheService.cacheAudioFile(
-            hash: track.hash!,
-            url: track.url,
-            dio: dio,
-          );
+        if (audioFilePath != null) {
+          await _player.setFilePath(audioFilePath);
+          print('[Audio] 使用缓存文件播放: ${track.title}');
+          loaded = true;
+        } else {
+          try {
+            await CacheService.resetAudioCachePartial(track.hash!);
+            final source = CachingStreamAudioSource(
+              uri: Uri.parse(track.url),
+              hash: track.hash!,
+            );
+            await _player.setAudioSource(source);
+            print('[Audio] 流式播放并写入缓存: ${track.title}');
+            loaded = true;
+          } catch (error) {
+            print('[Audio] 构建缓存流失败，回退到直接流式: $error');
+          }
         }
       }
 
-      // 3. 使用缓存文件或直接流式播放
-      if (audioFilePath != null) {
-        // 使用本地缓存文件
-        await _player.setFilePath(audioFilePath);
-        print('[Audio] 使用缓存文件播放: ${track.title}');
-      } else {
-        // 没有 hash 或缓存失败，直接流式播放
+      if (!loaded) {
         await _player.setUrl(track.url);
         print('[Audio] 流式播放: ${track.title}');
       }

@@ -16,6 +16,72 @@ class CacheService {
       Duration(days: 30); // 音频文件缓存30天（基于hash，不受URL变化影响）
   // 注意：图片缓存由 cached_network_image 包自己管理过期时间（默认7天）
 
+  static String _safeAudioHash(String hash) => hash.replaceAll('/', '_');
+
+  static Future<File> _audioFinalFile(String hash) async {
+    final safeHash = _safeAudioHash(hash);
+    final cacheDir = await _getAudioCacheDirectory();
+    return File('${cacheDir.path}/$safeHash.audio');
+  }
+
+  static Future<File> _audioTempFile(String hash) async {
+    final safeHash = _safeAudioHash(hash);
+    final cacheDir = await _getAudioCacheDirectory();
+    return File('${cacheDir.path}/$safeHash.audio.part');
+  }
+
+  static Future<void> _writeAudioCacheMeta(String hash) async {
+    final safeHash = _safeAudioHash(hash);
+    final prefs = await StorageService.getPrefs();
+    await prefs.setInt(
+        'audio_cache_meta_$safeHash', DateTime.now().millisecondsSinceEpoch);
+  }
+
+  static Future<void> _removeAudioCacheMeta(String hash) async {
+    final safeHash = _safeAudioHash(hash);
+    final prefs = await StorageService.getPrefs();
+    await prefs.remove('audio_cache_meta_$safeHash');
+  }
+
+  static Future<void> resetAudioCachePartial(String hash) async {
+    final tempFile = await _audioTempFile(hash);
+    if (await tempFile.exists()) {
+      await tempFile.delete();
+    }
+    // 在重新下载之前移除旧的 meta，防止过期逻辑误判
+    await _removeAudioCacheMeta(hash);
+  }
+
+  static Future<File> prepareAudioCacheTempFile(String hash) async {
+    final tempFile = await _audioTempFile(hash);
+    if (!await tempFile.exists()) {
+      await tempFile.create(recursive: true);
+    }
+    return tempFile;
+  }
+
+  static Future<void> finalizeAudioCacheFile(String hash,
+      {required int expectedSize}) async {
+    final tempFile = await _audioTempFile(hash);
+    if (!await tempFile.exists()) {
+      return;
+    }
+
+    final currentSize = await tempFile.length();
+    if (currentSize < expectedSize) {
+      return;
+    }
+
+    final finalFile = await _audioFinalFile(hash);
+
+    if (await finalFile.exists()) {
+      await finalFile.delete();
+    }
+
+    await tempFile.rename(finalFile.path);
+    await _writeAudioCacheMeta(hash);
+  }
+
   // 缓存大小上限配置键
   static const String cacheSizeLimitKey = 'cache_size_limit_mb';
   static const int defaultCacheSizeLimitMB = 1000; // 默认1GB (1000MB)
@@ -123,38 +189,34 @@ class CacheService {
     required Dio dio,
   }) async {
     try {
-      final cacheDir = await _getAudioCacheDirectory();
-      // 使用 hash 作为文件名（替换路径分隔符为下划线）
-      final safeHash = hash.replaceAll('/', '_');
-      final fileName = '$safeHash.audio';
-      final filePath = '${cacheDir.path}/$fileName';
-
-      // 如果文件已存在，检查是否过期
-      final file = File(filePath);
+      final finalFile = await _audioFinalFile(hash);
+      final file = finalFile;
       if (await file.exists()) {
         final lastModified = await file.lastModified();
         if (DateTime.now().difference(lastModified) < audioCacheDuration) {
           print('[Cache] 音频缓存命中: $hash');
-          return filePath; // 未过期，直接返回
+          return file.path; // 未过期，直接返回
         }
         // 过期，删除旧文件
         print('[Cache] 音频缓存过期，重新下载: $hash');
         await file.delete();
+        await _removeAudioCacheMeta(hash);
       }
 
-      // 下载文件
-      print('[Cache] 下载音频文件: $hash');
-      await dio.download(url, filePath);
+      // 清理旧的临时文件
+      await resetAudioCachePartial(hash);
+      final tempFile = await prepareAudioCacheTempFile(hash);
 
-      // 保存缓存元数据
-      final prefs = await StorageService.getPrefs();
-      final metaKey = 'audio_cache_meta_$safeHash';
-      await prefs.setInt(metaKey, DateTime.now().millisecondsSinceEpoch);
+      // 下载文件（先至临时文件）
+      print('[Cache] 下载音频文件: $hash');
+      await dio.download(url, tempFile.path);
+
+      // 下载完成后重命名为最终文件并写入 meta
+      await finalizeAudioCacheFile(hash, expectedSize: await tempFile.length());
 
       // 检查并自动清理缓存
       await checkAndCleanCache();
-
-      return filePath;
+      return (await _audioFinalFile(hash)).path;
     } catch (e) {
       print('[Cache] 缓存音频文件失败: $e');
       return null;
@@ -164,23 +226,33 @@ class CacheService {
   // 获取缓存的音频文件（基于 hash）
   static Future<String?> getCachedAudioFile(String hash) async {
     try {
-      final cacheDir = await _getAudioCacheDirectory();
-      final safeHash = hash.replaceAll('/', '_');
-      final fileName = '$safeHash.audio';
-      final filePath = '${cacheDir.path}/$fileName';
+      final finalFile = await _audioFinalFile(hash);
+      final tempFile = await _audioTempFile(hash);
 
-      final file = File(filePath);
+      // 如果只有临时文件存在，说明尚未缓存完成
+      if (!await finalFile.exists()) {
+        // 清理久远的临时文件，避免占用空间
+        if (await tempFile.exists()) {
+          final lastModified = await tempFile.lastModified();
+          if (DateTime.now().difference(lastModified) > audioCacheDuration) {
+            await tempFile.delete();
+          }
+        }
+        return null;
+      }
+
+      final file = finalFile;
       if (await file.exists()) {
         // 检查是否过期
         final prefs = await StorageService.getPrefs();
-        final metaKey = 'audio_cache_meta_$safeHash';
+        final metaKey = 'audio_cache_meta_${_safeAudioHash(hash)}';
         final cacheTime = prefs.getInt(metaKey);
 
         if (cacheTime != null) {
           final cacheDateTime = DateTime.fromMillisecondsSinceEpoch(cacheTime);
           if (DateTime.now().difference(cacheDateTime) < audioCacheDuration) {
             print('[Cache] 使用缓存的音频文件: $hash');
-            return filePath; // 未过期
+            return file.path; // 未过期
           }
         }
 
@@ -188,6 +260,9 @@ class CacheService {
         print('[Cache] 音频缓存过期: $hash');
         await file.delete();
         await prefs.remove(metaKey);
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
       }
 
       return null;
@@ -666,9 +741,11 @@ class CacheService {
 
               // 删除对应的元数据
               final fileName = entity.path.split(Platform.pathSeparator).last;
-              final safeHash = fileName.replaceAll('.audio', '');
               final prefs = await StorageService.getPrefs();
-              await prefs.remove('audio_cache_meta_$safeHash');
+              if (fileName.endsWith('.audio')) {
+                final safeHash = fileName.replaceAll('.audio', '');
+                await prefs.remove('audio_cache_meta_$safeHash');
+              }
             }
           }
         }
@@ -831,9 +908,11 @@ class CacheService {
           await _removeMetadataForFile(fileName);
         } else if (entry.key.path.contains('kikoeru_audio_cache')) {
           // 删除音频缓存元数据
-          final safeHash = fileName.replaceAll('.audio', '');
-          final prefs = await StorageService.getPrefs();
-          await prefs.remove('audio_cache_meta_$safeHash');
+          if (fileName.endsWith('.audio')) {
+            final safeHash = fileName.replaceAll('.audio', '');
+            final prefs = await StorageService.getPrefs();
+            await prefs.remove('audio_cache_meta_$safeHash');
+          }
         }
       }
 

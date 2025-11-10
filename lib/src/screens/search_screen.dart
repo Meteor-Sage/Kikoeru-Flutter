@@ -37,14 +37,14 @@ class SearchCondition {
   }
 }
 
-class SimpleSearchScreen extends ConsumerStatefulWidget {
-  const SimpleSearchScreen({super.key});
+class SearchScreen extends ConsumerStatefulWidget {
+  const SearchScreen({super.key});
 
   @override
-  ConsumerState<SimpleSearchScreen> createState() => _SimpleSearchScreenState();
+  ConsumerState<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SimpleSearchScreenState extends ConsumerState<SimpleSearchScreen>
+class _SearchScreenState extends ConsumerState<SearchScreen>
     with AutomaticKeepAliveClientMixin {
   final _searchController = TextEditingController();
   final _conditionsScrollController = ScrollController(); // 用于搜索条件横向滚动

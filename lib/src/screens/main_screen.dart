@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/audio_provider.dart';
 import '../widgets/audio_player_widget.dart';
 import 'works_screen.dart';
-import 'simple_search_screen.dart';
+import 'search_screen.dart';
 import 'my_screen.dart';
 import 'settings_screen.dart';
 
@@ -18,12 +18,21 @@ class MainScreen extends ConsumerStatefulWidget {
 class _MainScreenState extends ConsumerState<MainScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    const WorksScreen(),
-    const SimpleSearchScreen(),
-    const MyScreen(),
-    const SettingsScreen(),
-  ];
+  // 使用 PageStorageBucket 来保存页面状态
+  final PageStorageBucket _bucket = PageStorageBucket();
+
+  late final List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    _screens = const [
+      WorksScreen(key: PageStorageKey('works_screen')),
+      SearchScreen(key: PageStorageKey('search_screen')),
+      MyScreen(key: PageStorageKey('my_screen')),
+      SettingsScreen(key: PageStorageKey('settings_screen')),
+    ];
+  }
 
   final List<NavigationDestination> _destinations = [
     const NavigationDestination(
@@ -51,7 +60,18 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_currentIndex],
+      body: PageStorage(
+        bucket: _bucket,
+        child: IndexedStack(
+          index: _currentIndex,
+          children: List.generate(_screens.length, (index) {
+            return HeroMode(
+              enabled: index == _currentIndex,
+              child: _screens[index],
+            );
+          }),
+        ),
+      ),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

@@ -11,9 +11,32 @@ class SettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true; // 保持状态不被销毁
+
+  String _cacheSize = '计算中...';
+
+  @override
+  void initState() {
+    super.initState();
+    _updateCacheSize();
+  }
+
+  Future<void> _updateCacheSize() async {
+    final size = await CacheService.getFormattedCacheSize();
+    if (mounted) {
+      setState(() {
+        _cacheSize = size;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    super.build(context); // 必须调用以保持状态
+    _updateCacheSize(); // 每次 build 时更新缓存大小
     return Scaffold(
       appBar: AppBar(title: const Text('设置', style: TextStyle(fontSize: 18))),
       body: ListView(
@@ -63,15 +86,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ListTile(
                   leading: const Icon(Icons.storage),
                   title: const Text('缓存管理'),
-                  subtitle: FutureBuilder<String>(
-                    future: CacheService.getFormattedCacheSize(),
-                    builder: (context, snapshot) {
-                      if (snapshot.hasData) {
-                        return Text('当前缓存: ${snapshot.data}');
-                      }
-                      return const Text('计算中...');
-                    },
-                  ),
+                  subtitle: Text('当前缓存: $_cacheSize'),
                   trailing: const Icon(Icons.arrow_forward_ios),
                   onTap: () {
                     _showCacheManagementDialog();
@@ -337,7 +352,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       if (mounted) {
                         Navigator.of(context).pop(); // 关闭加载指示器
                         Navigator.of(context).pop(); // 关闭缓存管理对话框
-                        setState(() {}); // 刷新主界面
+                        await _updateCacheSize(); // 更新缓存大小
 
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(

@@ -13,18 +13,25 @@ class WorksScreen extends ConsumerStatefulWidget {
   ConsumerState<WorksScreen> createState() => _WorksScreenState();
 }
 
-class _WorksScreenState extends ConsumerState<WorksScreen> {
+class _WorksScreenState extends ConsumerState<WorksScreen>
+    with AutomaticKeepAliveClientMixin {
   final TextEditingController _pageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _showPagination = false;
 
   @override
+  bool get wantKeepAlive => true; // 保持状态不被销毁
+
+  @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    // Load initial data
+    // 只在首次加载时获取数据，如果已有数据则不重新加载
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(worksProvider.notifier).loadWorks(refresh: true);
+      final worksState = ref.read(worksProvider);
+      if (worksState.works.isEmpty) {
+        ref.read(worksProvider.notifier).loadWorks(refresh: true);
+      }
     });
   }
 
@@ -111,6 +118,7 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // 必须调用以保持状态
     final worksState = ref.watch(worksProvider);
     final isRecommendMode = worksState.displayMode == DisplayMode.popular ||
         worksState.displayMode == DisplayMode.recommended;
@@ -401,21 +409,21 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
               padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.check_circle_outline,
-              size: 16,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '已经到底啦~杂库~',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontSize: 14,
-              ),
-            ),
-          ],
+                children: [
+                  Icon(
+                    Icons.check_circle_outline,
+                    size: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '已经到底啦~杂库~',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -464,21 +472,22 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
                         vertical: 24, horizontal: 16),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.check_circle_outline,
-              size: 16,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '已经到底啦~杂库~',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                fontSize: 14,
-              ),
-            ),
-          ],
+                      children: [
+                        Icon(
+                          Icons.check_circle_outline,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '已经到底啦~杂库~',
+                          style: TextStyle(
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
                     ),
                   );
                 }
