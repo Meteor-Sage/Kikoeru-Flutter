@@ -3,7 +3,7 @@
   
   # KikoFlu
   
-  **一个现代化的跨平台 Kikoeru 客户端**
+  **一个现代化的跨平台同人音声客户端**
   
   [![Flutter](https://img.shields.io/badge/Flutter-3.0+-02569B?logo=flutter)](https://flutter.dev)
   [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-lightgrey)](https://github.com/Meteor-Sage/Kikoeru-Flutter)
@@ -13,7 +13,7 @@
 
 ---
 
-## ✨ 特性
+## 特性
 
 ### 🎵 强大的音频播放
 - **智能缓存系统** - 自动缓存已播放内容，离线也能流畅播放
@@ -63,7 +63,7 @@
 
 ---
 
-## 🚀 开始使用
+## 开始使用
 
 - Flutter SDK 3.0 或更高版本
 - Dart SDK 3.0 或更高版本
@@ -88,33 +88,19 @@ flutter build ios --release
 
 
 
-## 🤝 参与贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-1. Fork 本仓库
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
-
----
-
-## 📄 开源协议
+## 开源协议
 
 本项目基于 [MIT License](LICENSE) 开源
 
 ---
 
-## 🙏 致谢
+## 相关
 
-- [Kikoeru](https://github.com/kikoeru-project) - 提供强大的后端服务
-- Flutter 社区 - 优秀的开发框架和丰富的生态
-- 所有贡献者和用户的支持
+- [Kikoeru](https://github.com/kikoeru-project) - 提供后端服务
 
 ---
 
-## 📮 联系方式
+## 联系方式
 
 - **项目地址**: [GitHub](https://github.com/Meteor-Sage/Kikoeru-Flutter)
 - **问题反馈**: [Issues](https://github.com/Meteor-Sage/Kikoeru-Flutter/issues)
