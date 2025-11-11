@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
@@ -1197,6 +1199,7 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
 
     showDialog(
       context: context,
+      barrierDismissible: !Platform.isIOS, // iOS 上防止点击外部区域意外关闭
       builder: (context) => ResponsiveAlertDialog(
         title: const Text('播放速度'),
         content: StatefulBuilder(
@@ -1633,6 +1636,7 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
   void _showPlaylistDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
+      barrierDismissible: !Platform.isIOS, // iOS 上防止点击外部区域意外关闭
       builder: (context) => Consumer(
         builder: (context, ref, child) {
           final queueAsync = ref.watch(queueProvider);

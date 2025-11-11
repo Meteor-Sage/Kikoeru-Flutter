@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -292,6 +294,7 @@ class _MyScreenState extends ConsumerState<MyScreen>
 
     showDialog(
       context: context,
+      barrierDismissible: !Platform.isIOS, // iOS 上防止点击外部区域意外关闭
       builder: (context) {
         final dialog = ResponsiveAlertDialog(
           title: const Text('跳转到指定页'),

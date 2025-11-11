@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -322,6 +324,7 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
       // 横屏模式：使用对话框形式，3+3两列布局
       selectedValue = await showDialog<String>(
         context: context,
+        barrierDismissible: !Platform.isIOS, // iOS 上防止点击外部区域意外关闭
         builder: (dialogContext) {
           return Dialog(
             child: ConstrainedBox(
@@ -447,6 +450,8 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
       // 竖屏模式：使用底部弹窗
       selectedValue = await showResponsiveBottomSheet<String>(
         context: context,
+        isDismissible: !Platform.isIOS, // iOS 上防止点击外部区域或下拉意外关闭
+        enableDrag: !Platform.isIOS, // iOS 上禁止下拉关闭
         builder: (context) {
           return Container(
             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -497,6 +502,19 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                       Navigator.pop(context, '__REMOVE__');
                     },
                   ),
+                const Divider(),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () {
+                        Navigator.pop(context); // 取消，不返回任何值
+                      },
+                      child: const Text('取消'),
+                    ),
+                  ),
+                ),
               ],
             ),
           );

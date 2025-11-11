@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
@@ -133,6 +135,7 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
 
     showDialog(
       context: context,
+      barrierDismissible: !Platform.isIOS, // iOS 上防止点击外部区域意外关闭
       builder: (context) => const SortDialog(),
     );
   }
@@ -758,6 +761,7 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
 
     showDialog(
       context: context,
+      barrierDismissible: !Platform.isIOS, // iOS 上防止点击外部区域意外关闭
       builder: (context) {
         // 横屏时移除键盘视图插入，避免对话框被挤压
         final dialog = ResponsiveAlertDialog(

@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -94,6 +96,7 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
       // 横屏模式：使用对话框形式，3+3两列布局
       showDialog(
         context: context,
+        barrierDismissible: !Platform.isIOS, // iOS 上防止点击外部区域意外关闭
         builder: (dialogContext) {
           return Dialog(
             child: ConstrainedBox(
@@ -233,6 +236,8 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
     // 竖屏模式：使用底部弹窗
     showResponsiveBottomSheet(
       context: context,
+      isDismissible: !Platform.isIOS, // iOS 上防止点击外部区域或下拉意外关闭
+      enableDrag: !Platform.isIOS, // iOS 上禁止下拉关闭
       builder: (context) {
         return SafeArea(
           child: Column(
@@ -285,6 +290,17 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
                   onTap: _updating ? null : () => _updateProgress(null),
                 ),
               ],
+              const Divider(),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: _updating ? null : () => Navigator.pop(context),
+                    child: const Text('取消'),
+                  ),
+                ),
+              ),
               const SizedBox(height: 4),
             ],
           ),
