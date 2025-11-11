@@ -55,6 +55,7 @@ dependencies:
   # System Integration
   url_launcher: ^6.2.2
   package_info_plus: ^9.0.0
+  msix: ^3.16.12
 
 dev_dependencies:
   flutter_test:
@@ -86,5 +87,14 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/icons/app_icon_black.png"
   adaptive_icon_background: "#FFFFFF"
+
+msix_config:
+  display_name: KikoFlu
+  publisher_display_name: KikoFlu Dev
+  identity_name: com.meteor.kikoeruflutter
+  msix_version: 1.0.1.721
+  logo_path: assets\icons\app_icon.ico
+  capabilities: internetClient, musicLibrary, privateNetworkClientServer
+  languages: zh-CN, en-US, ja-JP
   adaptive_icon_foreground: "assets/icons/app_icon_black.png"
   remove_alpha_ios: true

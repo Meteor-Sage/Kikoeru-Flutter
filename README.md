@@ -73,8 +73,11 @@ flutter build apk --release
 
 flutter build apk --release --split-per-abi
 ```
+
 ```bash
 flutter build windows --release
+
+flutter pub run msix:create
 ```
 ```bash
 flutter build ios --release
