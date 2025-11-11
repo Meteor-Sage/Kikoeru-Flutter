@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/theme_provider.dart';
+import '../widgets/scrollable_appbar.dart';
 
 class ThemeSettingsScreen extends ConsumerWidget {
   const ThemeSettingsScreen({super.key});
@@ -11,7 +12,9 @@ class ThemeSettingsScreen extends ConsumerWidget {
     final themeSettings = ref.watch(themeSettingsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('主题设置', style: TextStyle(fontSize: 18))),
+      appBar: const ScrollableAppBar(
+        title: Text('主题设置', style: TextStyle(fontSize: 18)),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

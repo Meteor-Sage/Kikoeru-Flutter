@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/auth_provider.dart';
 import '../services/kikoeru_api_service.dart';
+import '../widgets/scrollable_appbar.dart';
 import 'main_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -354,7 +355,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: ScrollableAppBar(
         title: Text(widget.isAddingAccount
             ? (_isLogin ? '添加账户' : '注册账户')
             : (_isLogin ? '登录' : '注册')),

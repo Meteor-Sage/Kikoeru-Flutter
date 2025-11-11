@@ -111,6 +111,7 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        scrolledUnderElevation: 0,
         title: _isSelectionMode
             ? Text('已选择 ${_selectedTaskIds.length} 项')
             : const Text('下载管理', style: TextStyle(fontSize: 18)),

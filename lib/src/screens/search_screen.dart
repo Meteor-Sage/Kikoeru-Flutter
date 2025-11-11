@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/search_type.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/scrollable_appbar.dart';
 import 'search_result_screen.dart';
 
 // 搜索条件项
@@ -257,7 +258,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen>
         FocusScope.of(context).unfocus();
       },
       child: Scaffold(
-        appBar: AppBar(
+        appBar: ScrollableAppBar(
           title: const Text('搜索', style: TextStyle(fontSize: 18)),
           actions: [
             // 筛选按钮移到右上角

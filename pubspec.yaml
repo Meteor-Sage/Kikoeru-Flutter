@@ -52,6 +52,10 @@ dependencies:
   # Permissions
   permission_handler: ^11.1.0
   
+  # Image & File Operations
+  image_gallery_saver: ^2.0.3
+  file_picker: ^8.0.0+1
+  
   # System Integration
   url_launcher: ^6.2.2
   package_info_plus: ^9.0.0

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/account.dart';
 import '../services/account_database.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/scrollable_appbar.dart';
 import 'login_screen.dart';
 
 class AccountManagementScreen extends ConsumerStatefulWidget {
@@ -152,8 +153,8 @@ class _AccountManagementScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('账户管理'),
+      appBar: const ScrollableAppBar(
+        title: Text('账户管理'),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

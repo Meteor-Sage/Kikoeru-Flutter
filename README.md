@@ -3,10 +3,10 @@
 
   # KikoFlu
 
-  **一个现代化的跨平台同人音声客户端，基于Kikoeru**
+  **一个现代化的跨平台同人音声全平台客户端，基于Kikoeru**
 
   [![Flutter](https://img.shields.io/badge/Flutter-3.0+-02569B?logo=flutter)](https://flutter.dev)
-  [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-lightgrey)](https://github.com/Meteor-Sage/Kikoeru-Flutter)
+  [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Windows%20%7C%20macOS-lightgrey)](https://github.com/Meteor-Sage/Kikoeru-Flutter)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 </div>
@@ -30,6 +30,7 @@
 - 多媒体支持：音频、视频、文本、图片、pdf...
 
 ### 🎨 界面
+- 全平台支持
 - 遵循Material Design 3设计规范
 - 支持横屏模式
 - 优化的页面转场和交互反馈
@@ -68,21 +69,29 @@ cd Kikoeru-Flutter
 flutter pub get
 ```
 
+### Android
 ```bash
 flutter build apk --release
 
 flutter build apk --release --split-per-abi
 ```
 
+### Windows
 ```bash
 flutter build windows --release
 
 flutter pub run msix:create
 ```
+
+### iOS
 ```bash
-./build_ios_xcode.sh 2>&1 | tee build_ios.log
+./build_ios_xcode.sh
 ```
 
+### macOS
+```bash
+./build_macos.sh
+```
 
 
 ## 开源协议
@@ -100,7 +109,7 @@ flutter pub run msix:create
 ## 联系方式
 
 - **项目地址**: [GitHub](https://github.com/Meteor-Sage/Kikoeru-Flutter)
-- **问题反馈**: [Issues](https://github.com/Meteor-Sage/Kikoeru-Flutter/issues)
+- **问题反馈**: [Issues](https://github.com/Meteor-Sage/Kikoeru-Flutter/issues) [Telegram](https://t.me/+PrkiN-pZrXs4ZTU1)
 
 ---
 

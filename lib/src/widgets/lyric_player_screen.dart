@@ -189,6 +189,7 @@ class _LyricPlayerScreenState extends ConsumerState<LyricPlayerScreen> {
         title: const Text('歌词'),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         actions: [
           IconButton(
             icon: Icon(_autoScroll ? Icons.lock : Icons.lock_open),

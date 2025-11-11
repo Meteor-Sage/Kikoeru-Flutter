@@ -8,6 +8,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/work.dart';
 import '../providers/auth_provider.dart';
 import '../providers/my_reviews_provider.dart';
+import '../widgets/scrollable_appbar.dart';
 import '../services/storage_service.dart';
 import '../widgets/file_explorer_widget.dart';
 import '../widgets/file_selection_dialog.dart';
@@ -642,7 +643,7 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
   Widget build(BuildContext context) {
     return GlobalAudioPlayerWrapper(
       child: Scaffold(
-        appBar: AppBar(
+        appBar: ScrollableAppBar(
           // RJ号作为标题,支持长按复制
           title: GestureDetector(
             onLongPress: () => _copyToClipboard('RJ${widget.work.id}', 'RJ号'),

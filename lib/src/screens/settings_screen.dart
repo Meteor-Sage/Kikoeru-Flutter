@@ -6,6 +6,7 @@ import 'downloads_screen.dart';
 import 'theme_settings_screen.dart';
 import 'about_screen.dart';
 import '../services/cache_service.dart';
+import '../widgets/scrollable_appbar.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -49,7 +50,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     ];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('设置', style: TextStyle(fontSize: 18))),
+      appBar: const ScrollableAppBar(
+        title: Text('设置', style: TextStyle(fontSize: 18)),
+      ),
       body: isLandscape
           ? _buildLandscapeLayout(cards)
           : ListView.separated(

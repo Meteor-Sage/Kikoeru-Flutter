@@ -10,6 +10,7 @@ import '../widgets/enhanced_work_card.dart';
 import '../widgets/sort_dialog.dart';
 import '../utils/responsive_grid_helper.dart';
 import '../widgets/responsive_dialog.dart';
+import '../widgets/scrollable_appbar.dart';
 
 class WorksScreen extends ConsumerStatefulWidget {
   const WorksScreen({super.key});
@@ -171,7 +172,7 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
         worksState.displayMode == DisplayMode.recommended;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: ScrollableAppBar(
         toolbarHeight: 48,
         flexibleSpace: SafeArea(
           child: Row(

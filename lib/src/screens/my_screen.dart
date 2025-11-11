@@ -8,6 +8,7 @@ import '../providers/my_reviews_provider.dart';
 import '../widgets/enhanced_work_card.dart';
 import '../widgets/responsive_dialog.dart';
 import '../utils/responsive_grid_helper.dart';
+import '../widgets/scrollable_appbar.dart';
 import 'downloads_screen.dart';
 export '../providers/my_reviews_provider.dart' show MyReviewLayoutType;
 
@@ -454,7 +455,7 @@ class _MyScreenState extends ConsumerState<MyScreen>
     final state = ref.watch(myReviewsProvider);
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: ScrollableAppBar(
         toolbarHeight: 48, // 设置工具栏高度
         flexibleSpace: SafeArea(
           child: Row(

@@ -3,9 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../models/work.dart';
 import '../models/audio_track.dart';
@@ -13,6 +17,7 @@ import '../providers/auth_provider.dart';
 import '../providers/audio_provider.dart';
 import '../providers/lyric_provider.dart';
 import '../services/cache_service.dart';
+import 'scrollable_appbar.dart';
 import '../services/download_service.dart';
 import '../utils/file_icon_utils.dart';
 import 'responsive_dialog.dart';
@@ -1090,6 +1095,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   final Map<int, TransformationController> _transformControllers = {};
   bool _isScaled = false;
   int _pointerCount = 0;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -1135,6 +1141,167 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     }
   }
 
+  // 鼠标点击切换图片
+  void _handleTapNavigation(TapDownDetails details) {
+    if (_isScaled || _pointerCount > 0) return;
+    
+    final screenWidth = MediaQuery.of(context).size.width;
+    final tapPosition = details.globalPosition.dx;
+    
+    // 左侧三分之一区域点击 - 上一张
+    if (tapPosition < screenWidth / 3) {
+      if (_currentIndex > 0) {
+        _pageController.previousPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    }
+    // 右侧三分之一区域点击 - 下一张
+    else if (tapPosition > screenWidth * 2 / 3) {
+      if (_currentIndex < widget.images.length - 1) {
+        _pageController.nextPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    }
+  }
+
+  // 保存图片
+  Future<void> _saveImage() async {
+    if (_isSaving) return;
+    
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final currentImage = widget.images[_currentIndex];
+      final imageUrl = currentImage['url'] ?? '';
+      final imageName = currentImage['title'] ?? 'image_${_currentIndex + 1}';
+      
+      // 下载图片数据
+      final response = await Dio().get(
+        imageUrl,
+        options: Options(responseType: ResponseType.bytes),
+      );
+      final imageBytes = response.data as List<int>;
+
+      if (Platform.isAndroid || Platform.isIOS) {
+        // 移动端：保存到相册
+        await _saveToGallery(imageBytes, imageName);
+      } else if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
+        // 桌面端：选择保存位置
+        await _saveToFile(imageBytes, imageName);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('保存失败: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  // 保存到相册（移动端）
+  Future<void> _saveToGallery(List<int> imageBytes, String imageName) async {
+    // 请求存储权限
+    if (Platform.isAndroid) {
+      final status = await Permission.storage.request();
+      if (!status.isGranted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('需要存储权限才能保存图片'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+    } else if (Platform.isIOS) {
+      final status = await Permission.photos.request();
+      if (!status.isGranted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('需要相册权限才能保存图片'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    // 保存图片
+    final result = await ImageGallerySaver.saveImage(
+      Uint8List.fromList(imageBytes),
+      name: imageName,
+    );
+
+    if (mounted) {
+      if (result['isSuccess'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('图片已保存到相册'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('保存失败'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // 保存到文件（桌面端）
+  Future<void> _saveToFile(List<int> imageBytes, String imageName) async {
+    // 获取文件扩展名
+    String fileName = imageName;
+    if (!fileName.toLowerCase().endsWith('.jpg') &&
+        !fileName.toLowerCase().endsWith('.jpeg') &&
+        !fileName.toLowerCase().endsWith('.png') &&
+        !fileName.toLowerCase().endsWith('.gif')) {
+      fileName += '.jpg';
+    }
+
+    // 选择保存位置
+    final outputFile = await FilePicker.platform.saveFile(
+      dialogTitle: '保存图片',
+      fileName: fileName,
+      type: FileType.image,
+    );
+
+    if (outputFile != null) {
+      final file = File(outputFile);
+      await file.writeAsBytes(imageBytes);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('图片已保存到: $outputFile'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLandscape =
@@ -1151,11 +1318,30 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
         backgroundColor: Colors.black,
         extendBodyBehindAppBar: true,
         appBar: AppBar(
+          scrolledUnderElevation: 0,
           backgroundColor: Colors.black.withOpacity(0.4),
           elevation: 0,
           foregroundColor: Colors.white,
           title: Text(pageLabel),
           actions: [
+            if (_isSaving)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+              )
+            else
+              IconButton(
+                icon: const Icon(Icons.download),
+                onPressed: _saveImage,
+                tooltip: '保存图片',
+              ),
             IconButton(
               icon: const Icon(Icons.close),
               onPressed: () => Navigator.of(context).maybePop(),
@@ -1182,6 +1368,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
+        scrolledUnderElevation: 0,
         backgroundColor: Colors.black,
         elevation: 0,
         foregroundColor: Colors.white,
@@ -1200,6 +1387,26 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
               ),
           ],
         ),
+        actions: [
+          if (_isSaving)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.download),
+              onPressed: _saveImage,
+              tooltip: '保存图片',
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -1247,6 +1454,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
           final controller = _getTransformController(index);
 
           return GestureDetector(
+            onTapDown: _handleTapNavigation,
             onDoubleTap: () => _handleDoubleTap(index),
             child: InteractiveViewer(
               clipBehavior: Clip.none,
@@ -1532,7 +1740,7 @@ class _TextPreviewScreenState extends State<TextPreviewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: ScrollableAppBar(
         title: Text(widget.title),
         actions: [
           IconButton(
@@ -1785,7 +1993,7 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: ScrollableAppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

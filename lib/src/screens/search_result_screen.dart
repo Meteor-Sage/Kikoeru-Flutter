@@ -140,6 +140,8 @@ class _SearchResultScreenState extends ConsumerState<SearchResultScreen> {
     return GlobalAudioPlayerWrapper(
       child: Scaffold(
         appBar: AppBar(
+          scrolledUnderElevation: 0,
+          elevation: 0,
           titleSpacing: 0,
           actions: [
             IconButton(
