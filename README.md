@@ -3,15 +3,25 @@
   
   # KikoFlu
   
-  **一个现代化的跨平台同人音声客户端**
+  **一个现代化的跨平台同人音声客户端，基于Kikoeru**
   
   [![Flutter](https://img.shields.io/badge/Flutter-3.0+-02569B?logo=flutter)](https://flutter.dev)
   [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-lightgrey)](https://github.com/Meteor-Sage/Kikoeru-Flutter)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
   
 </div>
+---
+
+<div align="center">
+  <img src="screenshots/1.png" width="200" alt="主界面">
+  <img src="screenshots/2.png" width="200" alt="播放器">
+  <img src="screenshots/3.png" width="200" alt="作品详情">
+  <img src="screenshots/4.png" width="200" alt="下载管理">
+</div>
+
 
 ---
+
 
 ## 特性
 
@@ -50,16 +60,6 @@
 - **断点续传** - 下载中断后可继续，不浪费流量
 - **下载队列** - 智能管理下载任务，支持暂停/恢复/取消
 - **存储管理** - 自动清理过期缓存，可设置缓存大小限制
----
-
-## 📱 截图
-
-<div align="center">
-  <img src="screenshots/1.png" width="200" alt="主界面">
-  <img src="screenshots/2.png" width="200" alt="播放器">
-  <img src="screenshots/3.png" width="200" alt="作品详情">
-  <img src="screenshots/4.png" width="200" alt="下载管理">
-</div>
 
 ---
 
