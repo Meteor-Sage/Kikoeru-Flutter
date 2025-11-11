@@ -5,6 +5,7 @@ import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../models/work.dart';
 import '../models/audio_track.dart';
@@ -1685,6 +1686,18 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
         );
 
         if (cachedPath != null) {
+          // 在桌面平台，使用系统默认程序打开PDF
+          if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+            final uri = Uri.file(cachedPath);
+            if (await canLaunchUrl(uri)) {
+              await launchUrl(uri);
+              if (mounted) {
+                Navigator.of(context).pop();
+              }
+              return;
+            }
+          }
+
           setState(() {
             _localFilePath = cachedPath;
             _isLoading = false;
@@ -1703,6 +1716,18 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
         );
 
         if (newCachedPath != null) {
+          // 在桌面平台，使用系统默认程序打开PDF
+          if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+            final uri = Uri.file(newCachedPath);
+            if (await canLaunchUrl(uri)) {
+              await launchUrl(uri);
+              if (mounted) {
+                Navigator.of(context).pop();
+              }
+              return;
+            }
+          }
+
           setState(() {
             _localFilePath = newCachedPath;
             _isLoading = false;
@@ -1730,6 +1755,20 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
           }
         },
       );
+
+      // 在桌面平台，使用系统默认程序打开PDF
+      if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+        final uri = Uri.file(filePath);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri);
+          if (mounted) {
+            Navigator.of(context).pop(); // 返回上一页
+          }
+          return;
+        } else {
+          throw Exception('无法打开PDF文件');
+        }
+      }
 
       setState(() {
         _localFilePath = filePath;

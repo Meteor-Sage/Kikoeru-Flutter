@@ -114,13 +114,19 @@ class WorksNotifier extends StateNotifier<WorksState> {
   WorksNotifier(this._apiService, this._ref) : super(const WorksState());
 
   Future<void> loadWorks({bool refresh = false, int? targetPage}) async {
-    if (state.isLoading) return;
+    if (state.isLoading) {
+      print('[WorksProvider] Already loading, skipping');
+      return;
+    }
 
     // 全部模式使用分页,热门/推荐使用滚动加载
     final isAllMode = state.displayMode == DisplayMode.all;
     final page = isAllMode
         ? (targetPage ?? (refresh ? 1 : state.currentPage))
-        : (refresh ? 1 : state.currentPage);
+        : (refresh ? 1 : (state.currentPage + 1));
+
+    print(
+        '[WorksProvider] Loading works - mode: ${state.displayMode}, page: $page, refresh: $refresh, currentPage: ${state.currentPage}');
 
     state = state.copyWith(
       isLoading: true,
@@ -196,10 +202,13 @@ class WorksNotifier extends StateNotifier<WorksState> {
       final newWorks =
           isAllMode || refresh ? works : [...state.works, ...works];
 
+      print(
+          '[WorksProvider] Loaded ${works.length} works, total: ${newWorks.length}, hasMore: $hasMore, currentPage: $currentPage');
+
       state = state.copyWith(
         works: newWorks,
         isLoading: false,
-        currentPage: isAllMode ? currentPage : currentPage + 1,
+        currentPage: currentPage,
         totalCount: totalCount,
         hasMore: hasMore,
         pageSize: pageSize,

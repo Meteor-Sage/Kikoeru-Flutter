@@ -77,20 +77,30 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
         }
       });
     }
-    // 热门/推荐模式:自动加载更多（带防抖）
+    // 热门/推荐模式:自动加载更多
     else {
       if (isNearBottom &&
           !worksState.isLoading &&
           worksState.hasMore &&
           !_isLoadingMore) {
+        print(
+            '[WorksScreen] Triggering load more - currentPage: ${worksState.currentPage}');
         _isLoadingMore = true;
-        _scrollDebouncer = Timer(const Duration(milliseconds: 300), () {
+
+        // 立即执行加载，不使用 Timer
+        ref.read(worksProvider.notifier).loadWorks().then((_) {
           if (mounted) {
-            ref.read(worksProvider.notifier).loadWorks().then((_) {
-              _isLoadingMore = false;
-            }).catchError((_) {
+            setState(() {
               _isLoadingMore = false;
             });
+            print('[WorksScreen] Load more completed');
+          }
+        }).catchError((error) {
+          if (mounted) {
+            setState(() {
+              _isLoadingMore = false;
+            });
+            print('[WorksScreen] Load more error: $error');
           }
         });
       }
@@ -414,6 +424,12 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
 
   Widget _buildGridView(WorksState worksState, {required int crossAxisCount}) {
     final isAllMode = worksState.displayMode == DisplayMode.all;
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
+    // 横屏模式下使用更大的间距，让布局更优雅
+    final spacing = isLandscape ? 24.0 : 8.0;
+    final padding = isLandscape ? 24.0 : 8.0;
 
     return CustomScrollView(
       controller: _scrollController,
@@ -423,11 +439,11 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
       ),
       slivers: [
         SliverPadding(
-          padding: const EdgeInsets.all(8), // 统一为8
+          padding: EdgeInsets.all(padding),
           sliver: SliverMasonryGrid.count(
             crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 8, // 统一为8
-            mainAxisSpacing: 8, // 统一为8
+            crossAxisSpacing: spacing,
+            mainAxisSpacing: spacing,
             childCount: worksState.works.length +
                 (!isAllMode && worksState.hasMore ? 1 : 0),
             itemBuilder: (context, index) {
@@ -479,7 +495,7 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
         // 全部模式:分页控件(集成在瀑布流中)
         if (isAllMode && _showPagination)
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 24), // 统一左右padding为8
+            padding: EdgeInsets.fromLTRB(padding, spacing, padding, 24),
             sliver: SliverToBoxAdapter(
               child: _buildPaginationBar(worksState),
             ),

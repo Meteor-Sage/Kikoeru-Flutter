@@ -11,6 +11,7 @@ import '../providers/auth_provider.dart';
 import '../providers/lyric_provider.dart';
 import 'lyric_player_screen.dart';
 import 'responsive_dialog.dart';
+import 'volume_control.dart';
 
 class MiniPlayer extends ConsumerStatefulWidget {
   const MiniPlayer({super.key});
@@ -23,6 +24,8 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
   bool _isDragging = false;
   double _dragValue = 0.0;
   String? _lastTrackId;
+  bool _isAdjustingVolume = false;
+  double _tempVolume = 1.0;
 
   @override
   Widget build(BuildContext context) {
@@ -489,6 +492,36 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                                   },
                                   icon: const Icon(Icons.skip_next),
                                   iconSize: 24,
+                                ),
+                                // Volume control (desktop platforms only)
+                                Consumer(
+                                  builder: (context, ref, child) {
+                                    final audioState = ref
+                                        .watch(audioPlayerControllerProvider);
+                                    // 使用临时音量值避免拖动时重建
+                                    final displayVolume = _isAdjustingVolume
+                                        ? _tempVolume
+                                        : audioState.volume;
+                                    return VolumeControl(
+                                      volume: displayVolume,
+                                      onVolumeChanged: (value) {
+                                        setState(() {
+                                          _isAdjustingVolume = true;
+                                          _tempVolume = value;
+                                        });
+                                        ref
+                                            .read(audioPlayerControllerProvider
+                                                .notifier)
+                                            .setVolume(value);
+                                      },
+                                      onVolumeChangeEnd: () {
+                                        setState(() {
+                                          _isAdjustingVolume = false;
+                                        });
+                                      },
+                                      iconSize: 24,
+                                    );
+                                  },
                                 ),
                               ],
                             ),
@@ -1026,6 +1059,28 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
                                       height: 14), // Placeholder for alignment
                                 ],
                               ),
+                              // Volume control (desktop platforms only)
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Consumer(
+                                    builder: (context, ref, child) {
+                                      return VolumeControl(
+                                        volume: audioState.volume,
+                                        onVolumeChanged: (value) {
+                                          ref
+                                              .read(
+                                                  audioPlayerControllerProvider
+                                                      .notifier)
+                                              .setVolume(value);
+                                        },
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(
+                                      height: 14), // Placeholder for alignment
+                                ],
+                              ),
                             ],
                           ),
                         ],
@@ -1501,6 +1556,21 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
                             },
                             icon: const Icon(Icons.forward_10),
                             iconSize: 24,
+                          ),
+                          // 音量控制组件（非移动端）
+                          Consumer(
+                            builder: (context, ref, child) {
+                              return VolumeControl(
+                                volume: audioState.volume,
+                                onVolumeChanged: (value) {
+                                  ref
+                                      .read(audioPlayerControllerProvider
+                                          .notifier)
+                                      .setVolume(value);
+                                },
+                                iconSize: 24,
+                              );
+                            },
                           ),
                         ],
                       ),

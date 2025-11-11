@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 
 import 'src/screens/login_screen.dart';
 import 'src/screens/main_screen.dart';
@@ -18,8 +21,20 @@ import 'src/providers/theme_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize just_audio_media_kit for desktop platforms
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    JustAudioMediaKit.ensureInitialized();
+  }
+
   // Initialize Hive for local storage
-  await Hive.initFlutter();
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    // For desktop platforms, use application documents directory
+    final appDocDir = await getApplicationDocumentsDirectory();
+    await Hive.initFlutter('${appDocDir.path}/KikoFlu');
+  } else {
+    // For mobile platforms, use default path
+    await Hive.initFlutter();
+  }
   await StorageService.init();
 
   // Initialize account database

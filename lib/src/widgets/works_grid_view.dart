@@ -45,6 +45,13 @@ class WorksGridView extends StatelessWidget {
   }
 
   Widget _buildGridView(BuildContext context, {required int crossAxisCount}) {
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
+    // 横屏模式下使用更大的间距，让布局更优雅
+    final spacing = isLandscape ? 24.0 : 8.0;
+    final padding = isLandscape ? 24.0 : 8.0;
+
     return CustomScrollView(
       controller: scrollController,
       cacheExtent: 500,
@@ -53,11 +60,11 @@ class WorksGridView extends StatelessWidget {
       ),
       slivers: [
         SliverPadding(
-          padding: const EdgeInsets.all(8), // 统一为8
+          padding: EdgeInsets.all(padding),
           sliver: SliverMasonryGrid.count(
             crossAxisCount: crossAxisCount,
-            crossAxisSpacing: 8, // 统一为8
-            mainAxisSpacing: 8, // 统一为8
+            crossAxisSpacing: spacing,
+            mainAxisSpacing: spacing,
             childCount: works.length + (isLoading ? 1 : 0),
             itemBuilder: (context, index) {
               if (isLoading && index == works.length) {
@@ -107,7 +114,7 @@ class WorksGridView extends StatelessWidget {
         // 分页控件
         if (paginationWidget != null)
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 24), // 统一左右padding为8
+            padding: EdgeInsets.fromLTRB(padding, spacing, padding, 24),
             sliver: SliverToBoxAdapter(
               child: paginationWidget!,
             ),

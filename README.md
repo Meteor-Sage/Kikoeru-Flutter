@@ -70,8 +70,12 @@ flutter pub get
 
 ```bash
 flutter build apk --release
-```
 
+flutter build apk --release --split-per-abi
+```
+```bash
+flutter build windows --release
+```
 ```bash
 flutter build ios --release
 ```

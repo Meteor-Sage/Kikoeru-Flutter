@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:smtc_windows/smtc_windows.dart';
 
 import '../models/audio_track.dart';
 import 'cache_service.dart';
@@ -18,6 +20,9 @@ class AudioPlayerService {
   int _currentIndex = 0;
   AudioHandler? _audioHandler;
   LoopMode _appLoopMode = LoopMode.off; // Track loop mode at app level
+
+  // Windows SMTC support
+  SMTCWindows? _smtc;
 
   // Stream controllers
   final StreamController<List<AudioTrack>> _queueController =
@@ -39,6 +44,47 @@ class AudioPlayerService {
         androidShowNotificationBadge: true,
       ),
     );
+
+    // Initialize Windows SMTC (System Media Transport Controls)
+    if (Platform.isWindows) {
+      _smtc = SMTCWindows(
+        config: const SMTCConfig(
+          fastForwardEnabled: false,
+          nextEnabled: true,
+          pauseEnabled: true,
+          playEnabled: true,
+          rewindEnabled: false,
+          prevEnabled: true,
+          stopEnabled: true,
+        ),
+      );
+
+      // Register SMTC button callbacks
+      _smtc!.buttonPressStream.listen((button) {
+        switch (button) {
+          case PressedButton.play:
+            play();
+            break;
+          case PressedButton.pause:
+            pause();
+            break;
+          case PressedButton.next:
+            skipToNext();
+            break;
+          case PressedButton.previous:
+            skipToPrevious();
+            break;
+          case PressedButton.stop:
+            stop();
+            break;
+          default:
+            break;
+        }
+      });
+
+      // Enable SMTC
+      _smtc!.enableSmtc();
+    }
 
     // Listen to player state changes
     _player.playerStateStream.listen((state) {
@@ -102,6 +148,13 @@ class AudioPlayerService {
           bufferedPosition: _player.bufferedPosition,
           speed: _player.speed,
         ));
+
+    // Update Windows SMTC playback status
+    if (Platform.isWindows && _smtc != null) {
+      _smtc!.setPlaybackStatus(
+        playing ? PlaybackStatus.Playing : PlaybackStatus.Paused,
+      );
+    }
   }
 
   // Queue management
@@ -175,6 +228,18 @@ class AudioPlayerService {
           artUri:
               track.artworkUrl != null ? Uri.parse(track.artworkUrl!) : null,
         ));
+
+    // Update Windows SMTC media info
+    if (Platform.isWindows && _smtc != null) {
+      _smtc!.updateMetadata(
+        MusicMetadata(
+          title: track.title,
+          artist: track.artist ?? '',
+          album: track.album ?? '',
+          thumbnail: track.artworkUrl,
+        ),
+      );
+    }
 
     // Update playback state immediately after media item change
     _updatePlaybackState();

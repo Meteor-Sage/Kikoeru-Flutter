@@ -1,12 +1,55 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 
 class AppTheme {
+  // Windows 平台的字体配置
+  static TextTheme? _getTextTheme() {
+    if (Platform.isWindows) {
+      // 使用 Microsoft YaHei 作为主字体，确保中文显示一致
+      const fontFamily = 'Microsoft YaHei';
+      return const TextTheme(
+        displayLarge:
+            TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w400),
+        displayMedium:
+            TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w400),
+        displaySmall:
+            TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w400),
+        headlineLarge:
+            TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w400),
+        headlineMedium:
+            TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w400),
+        headlineSmall:
+            TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w400),
+        titleLarge:
+            TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w500),
+        titleMedium:
+            TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w500),
+        titleSmall:
+            TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w500),
+        bodyLarge:
+            TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w400),
+        bodyMedium:
+            TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w400),
+        bodySmall:
+            TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w400),
+        labelLarge:
+            TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w500),
+        labelMedium:
+            TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w500),
+        labelSmall:
+            TextStyle(fontFamily: fontFamily, fontWeight: FontWeight.w500),
+      );
+    }
+    return null;
+  }
+
   static ThemeData lightTheme(ColorScheme? lightDynamic) {
     final colorScheme = lightDynamic ?? _defaultLightColorScheme;
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
+      textTheme: _getTextTheme(),
       appBarTheme: AppBarTheme(
         centerTitle: true,
         elevation: 0,
@@ -48,6 +91,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
+      textTheme: _getTextTheme(),
       appBarTheme: AppBarTheme(
         centerTitle: true,
         elevation: 0,

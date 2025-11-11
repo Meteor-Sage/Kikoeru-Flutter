@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:path/path.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/account.dart';
 
 class AccountDatabase {
@@ -15,7 +18,23 @@ class AccountDatabase {
   }
 
   Future<Database> _initDB(String filePath) async {
-    final dbPath = await getDatabasesPath();
+    // Initialize FFI for desktop platforms
+    if (Platform.isWindows || Platform.isLinux) {
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    }
+
+    final String dbPath;
+    if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+      // For desktop platforms, use application documents directory
+      final appDocDir = await getApplicationDocumentsDirectory();
+      dbPath = join(appDocDir.path, 'KikoFlu');
+      // Create directory if it doesn't exist
+      await Directory(dbPath).create(recursive: true);
+    } else {
+      // For mobile platforms, use default path
+      dbPath = await getDatabasesPath();
+    }
     final path = join(dbPath, filePath);
 
     return await openDatabase(

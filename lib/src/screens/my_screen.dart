@@ -567,6 +567,13 @@ class _MyScreenState extends ConsumerState<MyScreen>
   }
 
   Widget _buildGridView(MyReviewsState state, {required int crossAxisCount}) {
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
+    // 横屏模式下使用更大的间距，让布局更优雅
+    final spacing = isLandscape ? 24.0 : 8.0;
+    final padding = isLandscape ? 24.0 : 8.0;
+
     return RefreshIndicator(
       onRefresh: () async => ref.read(myReviewsProvider.notifier).refresh(),
       child: CustomScrollView(
@@ -577,11 +584,11 @@ class _MyScreenState extends ConsumerState<MyScreen>
         ),
         slivers: [
           SliverPadding(
-            padding: const EdgeInsets.all(8),
+            padding: EdgeInsets.all(padding),
             sliver: SliverMasonryGrid.count(
               crossAxisCount: crossAxisCount,
-              mainAxisSpacing: 8,
-              crossAxisSpacing: 8,
+              mainAxisSpacing: spacing,
+              crossAxisSpacing: spacing,
               childCount: state.works.length,
               itemBuilder: (context, index) {
                 final work = state.works[index];
@@ -596,7 +603,7 @@ class _MyScreenState extends ConsumerState<MyScreen>
           // 分页控件
           if (_showPagination)
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
+              padding: EdgeInsets.fromLTRB(padding, spacing, padding, 24),
               sliver: SliverToBoxAdapter(
                 child: _buildPaginationBar(state),
               ),

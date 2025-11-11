@@ -20,6 +20,10 @@ class DownloadService {
   final List<DownloadTask> _tasks = [];
   final Dio _dio = Dio();
 
+  // 用于延迟保存任务，避免频繁 I/O 操作
+  Timer? _saveTimer;
+  bool _needsSave = false;
+
   Stream<List<DownloadTask>> get tasksStream => _tasksController.stream;
   List<DownloadTask> get tasks => List.unmodifiable(_tasks);
 
@@ -129,11 +133,13 @@ class DownloadService {
     );
 
     _tasks.add(task);
-    await _saveTasks();
     _tasksController.add(List.from(_tasks));
 
-    // 自动开始下载
-    _startDownload(task);
+    // 添加任务后立即保存
+    await _saveTasks();
+
+    // 自动开始下载（异步，不阻塞返回）
+    unawaited(_startDownload(task));
 
     return task;
   }
@@ -144,12 +150,17 @@ class DownloadService {
       return;
     }
 
-    _updateTask(task.copyWith(status: DownloadStatus.downloading));
+    _updateTask(task.copyWith(status: DownloadStatus.downloading),
+        immediate: true);
 
     final workDir = await _getWorkDownloadDirectory(task.workId);
     final filePath = '$workDir/${task.fileName}';
     final cancelToken = CancelToken();
     _cancelTokens[task.id] = cancelToken;
+
+    // 节流：限制进度更新频率
+    int lastUpdateTime = 0;
+    const updateInterval = 500; // 500ms 更新一次
 
     try {
       await _dio.download(
@@ -158,27 +169,37 @@ class DownloadService {
         cancelToken: cancelToken,
         onReceiveProgress: (received, total) {
           if (total != -1) {
-            _updateTask(task.copyWith(
-              downloadedBytes: received,
-              totalBytes: total,
-            ));
+            final now = DateTime.now().millisecondsSinceEpoch;
+            // 只在间隔足够时才更新，避免过于频繁的更新
+            if (now - lastUpdateTime > updateInterval || received == total) {
+              lastUpdateTime = now;
+              _updateTask(task.copyWith(
+                downloadedBytes: received,
+                totalBytes: total,
+              )); // 不立即保存，使用延迟保存
+            }
           }
         },
       );
 
-      _updateTask(task.copyWith(
-        status: DownloadStatus.completed,
-        completedAt: DateTime.now(),
-      ));
+      _updateTask(
+          task.copyWith(
+            status: DownloadStatus.completed,
+            completedAt: DateTime.now(),
+          ),
+          immediate: true); // 完成时立即保存
       _cancelTokens.remove(task.id);
     } catch (e) {
       if (e is DioException && e.type == DioExceptionType.cancel) {
-        _updateTask(task.copyWith(status: DownloadStatus.paused));
+        _updateTask(task.copyWith(status: DownloadStatus.paused),
+            immediate: true);
       } else {
-        _updateTask(task.copyWith(
-          status: DownloadStatus.failed,
-          error: e.toString(),
-        ));
+        _updateTask(
+            task.copyWith(
+              status: DownloadStatus.failed,
+              error: e.toString(),
+            ),
+            immediate: true);
       }
       _cancelTokens.remove(task.id);
     }
@@ -255,13 +276,31 @@ class DownloadService {
     return null;
   }
 
-  void _updateTask(DownloadTask updatedTask) {
+  void _updateTask(DownloadTask updatedTask, {bool immediate = false}) {
     final index = _tasks.indexWhere((t) => t.id == updatedTask.id);
     if (index != -1) {
       _tasks[index] = updatedTask;
-      _saveTasks();
       _tasksController.add(List.from(_tasks));
+
+      // 对于下载进度更新，使用延迟保存避免频繁 I/O
+      if (immediate) {
+        _saveTasks();
+      } else {
+        _scheduleDelayedSave();
+      }
     }
+  }
+
+  // 延迟保存，避免频繁的 I/O 操作
+  void _scheduleDelayedSave() {
+    _needsSave = true;
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(seconds: 2), () {
+      if (_needsSave) {
+        _saveTasks();
+        _needsSave = false;
+      }
+    });
   }
 
   Future<void> _loadTasks() async {
@@ -291,10 +330,17 @@ class DownloadService {
   }
 
   void dispose() {
+    _saveTimer?.cancel();
+    _saveTimer = null;
     _tasksController.close();
     for (final token in _cancelTokens.values) {
       token.cancel();
     }
     _cancelTokens.clear();
+
+    // 确保最后保存一次
+    if (_needsSave) {
+      _saveTasks();
+    }
   }
 }

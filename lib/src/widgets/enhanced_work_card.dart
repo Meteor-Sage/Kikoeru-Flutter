@@ -379,6 +379,10 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
   // 紧凑卡片 (3列布局)
   Widget _buildCompactCard(
       BuildContext context, String host, String token, VoidCallback cardOnTap) {
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    final titleFontSize = isLandscape ? 13.0 : 11.0;
+
     return Card(
       clipBehavior: Clip.antiAlias,
       margin: const EdgeInsets.all(0),
@@ -425,7 +429,7 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                           height: 1.1,
-                          fontSize: 11,
+                          fontSize: titleFontSize,
                         ),
                   ),
                 ],
@@ -440,6 +444,14 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
   // 中等卡片 (2列布局)
   Widget _buildMediumCard(
       BuildContext context, String host, String token, VoidCallback cardOnTap) {
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    final titleFontSize = isLandscape ? 14.0 : 12.0;
+    final bodyFontSize = isLandscape ? 12.0 : 10.0;
+    final priceFontSize = isLandscape ? 12.0 : 10.0;
+    final ratingFontSize = isLandscape ? 11.0 : 9.0;
+    final iconSize = isLandscape ? 14.0 : 12.0;
+
     return Card(
       clipBehavior: Clip.antiAlias,
       margin: const EdgeInsets.all(0),
@@ -491,7 +503,7 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                           height: 1.1,
-                          fontSize: 12,
+                          fontSize: titleFontSize,
                         ),
                   ),
                   const SizedBox(height: 3),
@@ -500,7 +512,7 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
                     widget.work.name ?? '',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.grey[600],
-                          fontSize: 10,
+                          fontSize: bodyFontSize,
                         ),
                   ),
                   const SizedBox(height: 3),
@@ -511,7 +523,7 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.red[700],
                             fontWeight: FontWeight.w600,
-                            fontSize: 10,
+                            fontSize: priceFontSize,
                           ),
                     ),
                   // 评分信息
@@ -524,7 +536,7 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
                         Icon(
                           Icons.star,
                           color: Colors.amber[700],
-                          size: 12,
+                          size: iconSize,
                         ),
                         const SizedBox(width: 2),
                         Text(
@@ -533,7 +545,7 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
                               Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: Colors.amber[700],
                                     fontWeight: FontWeight.w500,
-                                    fontSize: 9,
+                                    fontSize: ratingFontSize,
                                   ),
                         ),
                       ],
@@ -558,6 +570,11 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
   // 完整卡片 (列表布局)
   Widget _buildFullCard(
       BuildContext context, String host, String token, VoidCallback cardOnTap) {
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+    final rjFontSize = isLandscape ? 12.0 : 10.0;
+    final titleFontSize = isLandscape ? 16.0 : 14.0;
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       elevation: 4,
@@ -596,9 +613,9 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
                             ),
                             child: Text(
                               'RJ${widget.work.id}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 10,
+                                fontSize: rjFontSize,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -622,6 +639,7 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.bold,
                             height: 1.3,
+                            fontSize: titleFontSize,
                           ),
                     ),
                   ),
