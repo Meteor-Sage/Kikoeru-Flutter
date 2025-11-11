@@ -7,7 +7,7 @@ import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:saver_gallery/saver_gallery.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -1144,10 +1144,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   // 鼠标点击切换图片
   void _handleTapNavigation(TapDownDetails details) {
     if (_isScaled || _pointerCount > 0) return;
-    
+
     final screenWidth = MediaQuery.of(context).size.width;
     final tapPosition = details.globalPosition.dx;
-    
+
     // 左侧三分之一区域点击 - 上一张
     if (tapPosition < screenWidth / 3) {
       if (_currentIndex > 0) {
@@ -1171,7 +1171,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
   // 保存图片
   Future<void> _saveImage() async {
     if (_isSaving) return;
-    
+
     setState(() {
       _isSaving = true;
     });
@@ -1180,7 +1180,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
       final currentImage = widget.images[_currentIndex];
       final imageUrl = currentImage['url'] ?? '';
       final imageName = currentImage['title'] ?? 'image_${_currentIndex + 1}';
-      
+
       // 下载图片数据
       final response = await Dio().get(
         imageUrl,
@@ -1245,13 +1245,15 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
     }
 
     // 保存图片
-    final result = await ImageGallerySaver.saveImage(
+    final result = await SaverGallery.saveImage(
       Uint8List.fromList(imageBytes),
-      name: imageName,
+      fileName: imageName,
+      skipIfExists: false,
+      androidRelativePath: "Pictures/KikoFlu",
     );
 
     if (mounted) {
-      if (result['isSuccess'] == true) {
+      if (result.isSuccess) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('图片已保存到相册'),
@@ -1260,8 +1262,8 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('保存失败'),
+          SnackBar(
+            content: Text('保存失败: ${result.errorMessage ?? "未知错误"}'),
             backgroundColor: Colors.red,
           ),
         );

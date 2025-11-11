@@ -53,7 +53,7 @@ dependencies:
   permission_handler: ^11.1.0
   
   # Image & File Operations
-  image_gallery_saver: ^2.0.3
+  saver_gallery: ^4.0.1
   file_picker: ^8.0.0+1
   
   # System Integration
