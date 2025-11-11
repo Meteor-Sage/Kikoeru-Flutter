@@ -1,25 +1,23 @@
 <div align="center">
   <img src="assets/icons/app_icon_black.png" alt="KikoFlu" width="120" height="120">
-  
+
   # KikoFlu
-  
+
   **一个现代化的跨平台同人音声客户端，基于Kikoeru**
-  
+
   [![Flutter](https://img.shields.io/badge/Flutter-3.0+-02569B?logo=flutter)](https://flutter.dev)
   [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS-lightgrey)](https://github.com/Meteor-Sage/Kikoeru-Flutter)
   [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-  
+
 </div>
 
 
 ---
 
 <div align="center">
-  <img src="screenshots/1.png" width="200" alt="主界面">
-  <img src="screenshots/2.png" width="200" alt="播放器">
-  <img src="screenshots/3.png" width="200" alt="作品详情">
-  <img src="screenshots/4.png" width="200" alt="下载管理">
+  <img src="screenshots/8.png" width="800" alt="">
 </div>
+
 
 
 ---
@@ -110,7 +108,7 @@ flutter build ios --release
 ---
 
 <div align="center">
-  
+
   **如果这个项目对你有帮助，请给个 ⭐ Star 支持一下！**
-  
+
 </div>
