@@ -13,7 +13,7 @@
 
 
 <div align="center">
-  <img src="screenshots/8.png" width="900" alt="">
+  <img src="[screenshots/8.png](https://github.com/Meteor-Sage/Kikoeru-Flutter/blob/main/screenshots/8.png)" width="900" alt="">
 </div>
 
 
