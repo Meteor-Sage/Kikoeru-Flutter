@@ -5,7 +5,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../models/work.dart';
 import '../providers/auth_provider.dart';
-import '../providers/my_reviews_provider.dart';
 import '../widgets/scrollable_appbar.dart';
 import '../services/storage_service.dart';
 import '../widgets/file_explorer_widget.dart';
@@ -13,8 +12,9 @@ import '../widgets/file_selection_dialog.dart';
 import '../widgets/global_audio_player_wrapper.dart';
 import '../widgets/tag_chip.dart';
 import '../widgets/va_chip.dart';
+import '../widgets/circle_chip.dart';
 import '../widgets/responsive_dialog.dart';
-import '../widgets/review_progress_dialog.dart';
+import '../widgets/work_bookmark_manager.dart';
 
 class WorkDetailScreen extends ConsumerStatefulWidget {
   final Work work;
@@ -308,133 +308,41 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
     if (_isOpeningProgressDialog) return; // 防抖避免 iOS 双击导致立即关闭
     _isOpeningProgressDialog = true;
 
-    final selectedValue = await ReviewProgressDialog.show(
-      context: context,
+    final manager = WorkBookmarkManager(ref: ref, context: context);
+
+    await manager.showMarkDialog(
+      workId: widget.work.id,
       currentProgress: _currentProgress,
-      title: '选择收藏状态',
+      onProgressChanged: (newProgress) {
+        // 更新本地状态
+        if (mounted) {
+          setState(() {
+            _currentProgress = newProgress;
+            _isUpdatingProgress = false;
+          });
+        }
+      },
     );
 
     _isOpeningProgressDialog = false;
-
-    // 等待对话框完全关闭后再执行状态更新，避免 iOS 上的闪退
-    if (selectedValue != null) {
-      if (selectedValue == '__REMOVE__') {
-        await _updateProgress(null);
-      } else {
-        await _updateProgress(selectedValue);
-      }
-    }
-  }
-
-  // 更新收藏状态
-  Future<void> _updateProgress(String? progress) async {
-    if (_isUpdatingProgress) return;
-
-    setState(() {
-      _isUpdatingProgress = true;
-    });
-
-    try {
-      final apiService = ref.read(kikoeruApiServiceProvider);
-
-      if (progress != null) {
-        await apiService.updateReviewProgress(
-          widget.work.id,
-          progress: progress,
-        );
-
-        setState(() {
-          _currentProgress = progress;
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('已设置为：${_getProgressLabel(progress)}'),
-              duration: const Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      } else {
-        // 删除收藏状态
-        await apiService.deleteReview(widget.work.id);
-
-        setState(() {
-          _currentProgress = null;
-        });
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('已移除标记'),
-              duration: Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('更新失败: $e'),
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
-    } finally {
-      setState(() {
-        _isUpdatingProgress = false;
-      });
-    }
-  }
-
-  // 获取状态标签
-  String _getProgressLabel(String? progress) {
-    if (progress == null) return '标记';
-
-    final filter = [
-      MyReviewFilter.marked,
-      MyReviewFilter.listening,
-      MyReviewFilter.listened,
-      MyReviewFilter.replay,
-      MyReviewFilter.postponed,
-    ].firstWhere(
-      (f) => f.value == progress,
-      orElse: () => MyReviewFilter.all,
-    );
-
-    return filter.label;
-  }
-
-  // 获取状态对应的图标
-  IconData _getProgressIcon(String? progress) {
-    if (progress == null) return Icons.bookmark_border;
-
-    switch (progress) {
-      case 'marked':
-        return Icons.bookmark;
-      case 'listening':
-        return Icons.headphones;
-      case 'listened':
-        return Icons.check_circle;
-      case 'replay':
-        return Icons.replay;
-      case 'postponed':
-        return Icons.schedule;
-      default:
-        return Icons.bookmark;
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // 根据主题亮度设置状态栏图标颜色
+    final brightness = Theme.of(context).brightness;
+    final systemOverlayStyle = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: brightness == Brightness.light
+          ? Brightness.dark // 浅色模式用深色图标
+          : Brightness.light, // 深色模式用浅色图标
+      systemNavigationBarColor: Colors.transparent,
+    );
+
     return GlobalAudioPlayerWrapper(
       child: Scaffold(
         appBar: ScrollableAppBar(
+          systemOverlayStyle: systemOverlayStyle,
           // RJ号作为标题,支持长按复制
           title: GestureDetector(
             onLongPress: () => _copyToClipboard('RJ${widget.work.id}', 'RJ号'),
@@ -482,7 +390,8 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            _getProgressLabel(_currentProgress),
+                            WorkBookmarkManager.getProgressLabel(
+                                _currentProgress),
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
@@ -493,7 +402,8 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                           ),
                           const SizedBox(width: 4),
                           Icon(
-                            _getProgressIcon(_currentProgress),
+                            WorkBookmarkManager.getProgressIcon(
+                                _currentProgress),
                             size: 22,
                             color: _currentProgress != null
                                 ? Theme.of(context).colorScheme.primary
@@ -753,27 +663,18 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
               runSpacing: 4,
               children: [
                 // 社团名称标签
-                if (work.name != null && work.name!.isNotEmpty)
-                  GestureDetector(
+                if (work.name != null &&
+                    work.name!.isNotEmpty &&
+                    work.circleId != null)
+                  CircleChip(
+                    circleId: work.circleId!,
+                    circleName: work.name!,
+                    fontSize: 12,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    borderRadius: 6,
+                    fontWeight: FontWeight.w500,
                     onLongPress: () => _copyToClipboard(work.name!, '社团'),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.secondaryContainer,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        work.name!,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSecondaryContainer,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
                   ),
 
                 // 声优列表

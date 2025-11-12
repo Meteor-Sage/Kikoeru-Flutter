@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// 可滚动 AppBar - 默认不显示分隔线，滚动时显示
 class ScrollableAppBar extends StatefulWidget implements PreferredSizeWidget {
@@ -16,6 +17,7 @@ class ScrollableAppBar extends StatefulWidget implements PreferredSizeWidget {
     this.automaticallyImplyLeading = true,
     this.titleSpacing,
     this.centerTitle,
+    this.systemOverlayStyle,
   });
 
   final Widget? title;
@@ -30,6 +32,7 @@ class ScrollableAppBar extends StatefulWidget implements PreferredSizeWidget {
   final bool automaticallyImplyLeading;
   final double? titleSpacing;
   final bool? centerTitle;
+  final SystemUiOverlayStyle? systemOverlayStyle;
 
   @override
   State<ScrollableAppBar> createState() => _ScrollableAppBarState();
@@ -96,6 +99,7 @@ class _ScrollableAppBarState extends State<ScrollableAppBar> {
       foregroundColor: widget.foregroundColor,
       elevation: widget.elevation ?? 0,
       scrolledUnderElevation: 0,
+      systemOverlayStyle: widget.systemOverlayStyle,
       toolbarHeight: widget.toolbarHeight,
       flexibleSpace: widget.flexibleSpace,
       automaticallyImplyLeading: widget.automaticallyImplyLeading,

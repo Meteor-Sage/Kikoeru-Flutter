@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,12 +9,15 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import '../models/audio_track.dart';
 import '../models/lyric.dart';
+import '../models/work.dart';
 import '../providers/audio_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/lyric_provider.dart';
+import '../screens/work_detail_screen.dart';
 import 'lyric_player_screen.dart';
 import 'responsive_dialog.dart';
 import 'volume_control.dart';
+import 'work_bookmark_manager.dart';
 
 class AudioPlayerScreen extends ConsumerStatefulWidget {
   const AudioPlayerScreen({super.key});
@@ -26,6 +30,8 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
   bool _isSeekingManually = false;
   double _seekValue = 0.0;
   bool _showLyricHint = false;
+  String? _currentProgress; // 跟踪当前作品的标记状态
+  int? _currentWorkId; // 跟踪当前作品ID
 
   @override
   void initState() {
@@ -57,6 +63,24 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
     }
   }
 
+  /// 加载当前作品的标记状态
+  Future<void> _loadCurrentProgress(int workId) async {
+    try {
+      final apiService = ref.read(kikoeruApiServiceProvider);
+      final workData = await apiService.getWork(workId);
+      final work = Work.fromJson(workData);
+
+      if (mounted && _currentWorkId == workId) {
+        setState(() {
+          _currentProgress = work.progress;
+        });
+      }
+    } catch (e) {
+      // 加载失败时保持空状态，不影响用户体验
+      debugPrint('Failed to load progress for work $workId: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentTrack = ref.watch(currentTrackProvider);
@@ -71,11 +95,22 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
     // 启用自动歌词加载器
     ref.watch(lyricAutoLoaderProvider);
 
+    // 根据主题亮度设置状态栏图标颜色
+    final brightness = Theme.of(context).brightness;
+    final systemOverlayStyle = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: brightness == Brightness.light
+          ? Brightness.dark // 浅色模式用深色图标
+          : Brightness.light, // 深色模式用浅色图标
+      systemNavigationBarColor: Colors.transparent,
+    );
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
+        systemOverlayStyle: systemOverlayStyle,
         leading: Padding(
           padding: const EdgeInsets.only(left: 8.0),
           child: IconButton(
@@ -93,6 +128,67 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
               },
               tooltip: '播放列表',
             ),
+          ),
+          currentTrack.when(
+            data: (track) {
+              if (track?.workId != null) {
+                // 当作品切换时，重置进度状态
+                if (_currentWorkId != track!.workId) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      setState(() {
+                        _currentWorkId = track.workId;
+                        _currentProgress = null; // 先重置，稍后通过对话框获取
+                      });
+                      // 异步加载当前标记状态
+                      _loadCurrentProgress(track.workId!);
+                    }
+                  });
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8.0),
+                  child: PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert),
+                    tooltip: '更多选项',
+                    onSelected: (value) async {
+                      if (value == 'mark') {
+                        await _showMarkDialog(context, track.workId!);
+                      } else if (value == 'detail') {
+                        _navigateToWorkDetail(context, track.workId!);
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'mark',
+                        child: Row(
+                          children: [
+                            Icon(WorkBookmarkManager.getProgressIcon(
+                                _currentProgress)),
+                            const SizedBox(width: 12),
+                            Text(WorkBookmarkManager.getProgressLabel(
+                                _currentProgress)),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'detail',
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline),
+                            SizedBox(width: 12),
+                            Text('查看详情'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
           ),
         ],
         automaticallyImplyLeading: false,
@@ -805,7 +901,7 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 24),
                       // 标题和艺术家
                       Text(
                         track.title,
@@ -817,7 +913,7 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       if (track.artist != null) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Text(
                           track.artist!,
                           style:
@@ -831,7 +927,7 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 24),
                       // 进度条
                       Column(
                         children: [
@@ -905,7 +1001,7 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 20),
                       // 主控制按钮
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -958,7 +1054,7 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 16),
                       // 附加控制按钮
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -1278,6 +1374,67 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
         },
       ),
     );
+  }
+
+  /// 显示标记对话框
+  Future<void> _showMarkDialog(BuildContext context, int workId) async {
+    final manager = WorkBookmarkManager(ref: ref, context: context);
+
+    await manager.showMarkDialog(
+      workId: workId,
+      currentProgress: _currentProgress,
+      onProgressChanged: (newProgress) {
+        // 更新本地状态
+        if (mounted) {
+          setState(() {
+            _currentProgress = newProgress;
+          });
+        }
+      },
+    );
+  }
+
+  /// 跳转到作品详情页
+  Future<void> _navigateToWorkDetail(BuildContext context, int workId) async {
+    try {
+      // 显示加载指示器
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+      }
+
+      // 通过 API 获取作品详情
+      final apiService = ref.read(kikoeruApiServiceProvider);
+      final workData = await apiService.getWork(workId);
+      final work = Work.fromJson(workData);
+
+      if (context.mounted) {
+        // 关闭加载对话框
+        Navigator.of(context).pop();
+
+        // 导航到详情页
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => WorkDetailScreen(work: work),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        // 关闭加载对话框
+        Navigator.of(context).pop();
+
+        // 显示错误消息
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('加载失败: $e')),
+        );
+      }
+    }
   }
 }
 
