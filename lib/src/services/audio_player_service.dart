@@ -20,6 +20,8 @@ class AudioPlayerService {
   int _currentIndex = 0;
   AudioHandler? _audioHandler;
   LoopMode _appLoopMode = LoopMode.off; // Track loop mode at app level
+  bool _completionHandled = false; // Track if completion has been handled for current track
+  Timer? _completionCheckTimer; // Timer to periodically check for completion
 
   // Windows SMTC support
   SMTCWindows? _smtc;
@@ -32,6 +34,7 @@ class AudioPlayerService {
 
   // Initialize the service
   Future<void> initialize() async {
+    print('[Audio] initialize() called');
     // Initialize audio service handler for system integration
     _audioHandler = await AudioService.init(
       builder: () => _AudioPlayerHandler(this),
@@ -88,32 +91,132 @@ class AudioPlayerService {
 
     // Listen to player state changes
     _player.playerStateStream.listen((state) {
+      print('[Audio] PlayerState Stream Event - processingState: ${state.processingState}, playing: ${state.playing}');
+      
       if (state.processingState == ProcessingState.completed) {
-        // Handle track completion based on app-level loop mode
-        if (_appLoopMode == LoopMode.one) {
-          // Single track repeat - replay current track
-          seek(Duration.zero);
-          play();
-        } else if (_currentIndex < _queue.length - 1) {
-          // Has next track - play it
-          skipToNext();
-        } else if (_appLoopMode == LoopMode.all && _queue.isNotEmpty) {
-          // List repeat - go back to first track
-          skipToIndex(0);
-        } else {
-          // Reached the end of the queue with no repeat, pause
-          pause();
-        }
+        print('[Audio] Track completed via ProcessingState.completed');
+        _handleTrackCompletion();
       }
 
       // Update audio service playback state
       _updatePlaybackState();
     });
 
-    // Listen to position changes
+        // Listen to position changes and detect completion as fallback
+    Duration lastPosition = Duration.zero;
+    int positionEventCount = 0;
     _player.positionStream.listen((position) {
+      positionEventCount++;
+      final duration = _player.duration;
+      final processingState = _player.processingState;
+      
+      // Log every 10 events to confirm stream is working
+      if (positionEventCount % 10 == 0) {
+        print('[Audio] PositionStream event #$positionEventCount - position: ${position.inSeconds}s, state: $processingState');
+      }
+      
+      // Reset completion flag when track changes or seeks
+      if (position < lastPosition - const Duration(seconds: 1)) {
+        _completionHandled = false;
+        print('[Audio] Position reset detected, clearing completion flag');
+      }
+      
+      // Check for immediate completion (when processingState is completed but stream didn't fire)
+      if (processingState == ProcessingState.completed && 
+          !_completionHandled &&
+          _player.playing) {
+        print('[Audio] Detected completed state in position stream - position: ${position.inSeconds}s');
+        _completionHandled = true;
+        _handleTrackCompletion();
+        return;
+      }
+      
+      // Fallback: detect completion when position reaches duration
+      if (duration != null && 
+          position >= duration - const Duration(milliseconds: 100) &&
+          _player.playing &&
+          !_completionHandled) {
+        print('[Audio] Position near end - position: ${position.inSeconds}s, duration: ${duration.inSeconds}s, playing: ${_player.playing}');
+        
+        // Check if position is stuck at the end (completion not triggered)
+        if (lastPosition != Duration.zero && 
+            (position - lastPosition).inMilliseconds.abs() < 50 &&
+            position >= duration - const Duration(milliseconds: 100)) {
+          print('[Audio] Detected completion via position fallback - position stuck at ${position.inSeconds}s');
+          _completionHandled = true;
+          _handleTrackCompletion();
+        }
+      }
+      
+      lastPosition = position;
       _updatePlaybackState();
     });
+    
+    // Start periodic completion check timer (macOS workaround for StreamAudioSource completion bug)
+    if (Platform.isMacOS) {
+      print('[Audio] About to start completion check timer (macOS workaround)');
+      _startCompletionCheckTimer();
+    }
+    print('[Audio] initialize() completed');
+  }
+
+  // Handle track completion logic
+  void _handleTrackCompletion() {
+    print('[Audio] _handleTrackCompletion called - currentIndex: $_currentIndex, queueLength: ${_queue.length}, loopMode: $_appLoopMode');
+    
+    if (_appLoopMode == LoopMode.one) {
+      // Single track repeat - replay current track
+      print('[Audio] Loop mode: one - replaying current track');
+      seek(Duration.zero);
+      play();
+    } else if (_currentIndex < _queue.length - 1) {
+      // Has next track - play it
+      print('[Audio] Playing next track - index: ${_currentIndex + 1}');
+      skipToNext();
+    } else if (_appLoopMode == LoopMode.all && _queue.isNotEmpty) {
+      // List repeat - go back to first track
+      print('[Audio] Loop mode: all - going back to first track');
+      skipToIndex(0);
+    } else {
+      // Reached the end of the queue with no repeat, pause
+      print('[Audio] End of queue reached - pausing');
+      pause();
+    }
+  }
+
+  // Start periodic timer to check for track completion (macOS workaround)
+  // This is needed because StreamAudioSource on macOS doesn't properly fire completion events
+  void _startCompletionCheckTimer() {
+    print('[Audio] _startCompletionCheckTimer called (macOS workaround)');
+    _completionCheckTimer?.cancel();
+    print('[Audio] Creating new periodic timer');
+    int tickCount = 0;
+    _completionCheckTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      tickCount++;
+      final position = _player.position;
+      final duration = _player.duration;
+      final processingState = _player.processingState;
+      final playing = _player.playing;
+      
+      // Log every tick for debugging
+      print('[Audio] Timer tick #$tickCount - playing: $playing, state: $processingState, position: ${position.inSeconds}s/${duration?.inSeconds ?? '?'}s, completionHandled: $_completionHandled');
+      
+      if (playing && !_completionHandled) {
+        // Check if track is completed
+        if (processingState == ProcessingState.completed) {
+          print('[Audio] Timer detected completion - processingState: completed');
+          _completionHandled = true;
+          _handleTrackCompletion();
+        } else if (duration != null && 
+                   duration > Duration.zero && // Must have valid duration
+                   position >= duration - const Duration(milliseconds: 50)) {
+          print('[Audio] Timer detected completion - position: ${position.inSeconds}/${duration.inSeconds}s');
+          _completionHandled = true;
+          _handleTrackCompletion();
+        }
+      }
+    });
+    print('[Audio] Timer created, isActive: ${_completionCheckTimer?.isActive ?? false}');
   }
 
   // Update audio service playback state for system controls
@@ -160,6 +263,7 @@ class AudioPlayerService {
   // Queue management
   Future<void> updateQueue(List<AudioTrack> tracks,
       {int startIndex = 0}) async {
+    print('[Audio] updateQueue called - tracks: ${tracks.length}, startIndex: $startIndex');
     _queue.clear();
     _queue.addAll(tracks);
     _currentIndex = startIndex.clamp(0, tracks.length - 1);
@@ -169,10 +273,17 @@ class AudioPlayerService {
     // Load the current track
     if (tracks.isNotEmpty && _currentIndex < tracks.length) {
       await _loadTrack(tracks[_currentIndex]);
+      print('[Audio] Track loaded, ready to play');
     }
   }
 
   Future<void> _loadTrack(AudioTrack track) async {
+    print('[Audio] Loading track: ${track.title}, hash: ${track.hash}');
+    
+    // Reset completion flag for new track
+    _completionHandled = false;
+    print('[Audio] Completion flag reset, timer active: ${_completionCheckTimer?.isActive ?? false}');
+    
     try {
       String? audioFilePath;
       bool loaded = false;
@@ -206,12 +317,13 @@ class AudioPlayerService {
         print('[Audio] 流式播放: ${track.title}');
       }
 
+      print('[Audio] Track loaded successfully, duration: ${_player.duration}');
       _currentTrackController.add(track);
 
       // Update media item for system controls
       _updateMediaItem(track);
     } catch (e) {
-      print('Error loading audio source: $e');
+      print('[Audio] Error loading audio source: $e');
     }
   }
 
@@ -247,11 +359,30 @@ class AudioPlayerService {
 
   // Playback controls
   Future<void> play() async {
+    print('[Audio] play() called - current state: ${_player.processingState}, playing: ${_player.playing}');
+    
+    // Ensure completion check timer is running (macOS workaround for StreamAudioSource completion bug)
+    if (Platform.isMacOS && (_completionCheckTimer == null || !_completionCheckTimer!.isActive)) {
+      print('[Audio] Timer not active, starting it now (macOS workaround)');
+      _startCompletionCheckTimer();
+    }
+    
     await _player.play();
+    print('[Audio] play() completed - new state: ${_player.processingState}, playing: ${_player.playing}');
+    
+    // Check if track completed immediately (workaround for immediate completion bug)
+    if (_player.processingState == ProcessingState.completed) {
+      print('[Audio] Track completed immediately after play() - triggering completion handler');
+      Future.delayed(const Duration(milliseconds: 100), () {
+        _handleTrackCompletion();
+      });
+    }
+    
     _updatePlaybackState();
   }
 
   Future<void> pause() async {
+    print('[Audio] pause() called');
     await _player.pause();
     _updatePlaybackState();
   }
@@ -286,12 +417,14 @@ class AudioPlayerService {
   }
 
   Future<void> skipToNext() async {
+    print('[Audio] skipToNext() called - currentIndex: $_currentIndex, queueLength: ${_queue.length}');
     if (_queue.isNotEmpty && _currentIndex < _queue.length - 1) {
       _currentIndex++;
       await _loadTrack(_queue[_currentIndex]);
       await play();
     } else {
       // No next track available
+      print('[Audio] skipToNext() failed - no next track');
       throw Exception('没有下一首可播放');
     }
   }

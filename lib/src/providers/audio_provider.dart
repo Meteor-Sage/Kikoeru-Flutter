@@ -76,16 +76,20 @@ class AudioPlayerController extends StateNotifier<AudioPlayerState> {
   AudioPlayerController(this._service) : super(const AudioPlayerState());
 
   Future<void> initialize() async {
+    print('[AudioPlayerController] initialize() called');
     // Request notification permission for Android 13+
     await Permission.notification.request();
 
+    print('[AudioPlayerController] Calling service.initialize()');
     await _service.initialize();
+    print('[AudioPlayerController] service.initialize() completed');
 
     // Listen to player state changes
     _service.playerStateStream.listen((playerState) {
       // Force a state update to trigger UI rebuild
       state = state.copyWith();
     });
+    print('[AudioPlayerController] initialize() completed');
   }
 
   Future<void> playTrack(AudioTrack track) async {
