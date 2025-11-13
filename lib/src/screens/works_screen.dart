@@ -7,7 +7,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../providers/works_provider.dart';
 import '../widgets/enhanced_work_card.dart';
-import '../widgets/common_sort_dialog.dart';
+import '../widgets/sort_dialog.dart';
 import '../widgets/pagination_bar.dart';
 import '../utils/responsive_grid_helper.dart';
 import '../widgets/scrollable_appbar.dart';

@@ -4,8 +4,9 @@ import 'responsive_dialog.dart';
 
 /// 通用排序对话框
 ///
-/// 提供 currentOption, currentDirection 和 onSort 回调
-/// 选择后自动关闭对话框并触发回调
+/// 支持两种使用模式：
+/// 1. 回调模式：提供 currentOption, currentDirection 和 onSort 回调
+/// 2. 直接模式：选择后自动关闭对话框并触发回调
 ///
 /// 自动适配横屏/竖屏布局：
 /// - 横屏：两列布局（左：排序字段，右：排序方向）
@@ -15,6 +16,7 @@ class CommonSortDialog extends StatelessWidget {
   final SortDirection currentDirection;
   final Function(SortOrder, SortDirection) onSort;
   final String title;
+  final bool autoClose;
 
   const CommonSortDialog({
     super.key,
@@ -22,6 +24,7 @@ class CommonSortDialog extends StatelessWidget {
     required this.currentDirection,
     required this.onSort,
     this.title = '排序选项',
+    this.autoClose = true,
   });
 
   @override
@@ -77,7 +80,9 @@ class CommonSortDialog extends StatelessWidget {
                               onChanged: (value) {
                                 if (value != null) {
                                   onSort(value, currentDirection);
-                                  Navigator.pop(context);
+                                  if (autoClose) {
+                                    Navigator.pop(context);
+                                  }
                                 }
                               },
                               dense: true,
@@ -120,7 +125,9 @@ class CommonSortDialog extends StatelessWidget {
                               onChanged: (value) {
                                 if (value != null) {
                                   onSort(currentOption, value);
-                                  Navigator.pop(context);
+                                  if (autoClose) {
+                                    Navigator.pop(context);
+                                  }
                                 }
                               },
                               dense: true,
@@ -137,6 +144,14 @@ class CommonSortDialog extends StatelessWidget {
             ],
           ),
         ),
+        actions: autoClose
+            ? null
+            : [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('关闭'),
+                ),
+              ],
       );
     }
 
@@ -161,7 +176,9 @@ class CommonSortDialog extends StatelessWidget {
                 onChanged: (value) {
                   if (value != null) {
                     onSort(value, currentDirection);
-                    Navigator.pop(context);
+                    if (autoClose) {
+                      Navigator.pop(context);
+                    }
                   }
                 },
                 dense: true,
@@ -182,7 +199,9 @@ class CommonSortDialog extends StatelessWidget {
                 onChanged: (value) {
                   if (value != null) {
                     onSort(currentOption, value);
-                    Navigator.pop(context);
+                    if (autoClose) {
+                      Navigator.pop(context);
+                    }
                   }
                 },
                 dense: true,
@@ -194,7 +213,7 @@ class CommonSortDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('取消'),
+          child: Text(autoClose ? '取消' : '关闭'),
         ),
       ],
     );
