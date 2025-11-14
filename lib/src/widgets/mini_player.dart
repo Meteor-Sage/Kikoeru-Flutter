@@ -5,7 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/audio_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/lyric_provider.dart';
-import 'audio_player_screen.dart';
+import '../screens/audio_player_screen.dart';
 import 'volume_control.dart';
 
 class MiniPlayer extends ConsumerStatefulWidget {
