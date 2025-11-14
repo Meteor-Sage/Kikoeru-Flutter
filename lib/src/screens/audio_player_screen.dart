@@ -408,58 +408,125 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
             // 左侧：封面和控制
             Expanded(
               flex: 2,
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      PlayerCoverWidget(
-                        track: track,
-                        workCoverUrl: workCoverUrl,
-                        isLandscape: true,
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        track.title,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (track.artist != null) ...[
-                        const SizedBox(height: 6),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // 计算所有固定元素的高度
+                  const double padding = 32.0; // 上下padding 16 * 2
+                  const double titleHeight = 60.0; // 标题预估高度（2行）
+                  const double artistHeight = 20.0; // 艺术家名称高度
+                  const double controlsHeight = 200.0; // 控制组件预估高度
+
+                  // 计算封面之间和控制组件之间需要的间距
+                  const double minSpacing1 = 12.0; // 封面到标题最小间距
+                  const double minSpacing2 = 6.0; // 标题到艺术家最小间距
+                  const double minSpacing3 = 12.0; // 艺术家到控制器最小间距
+                  const double minTotalSpacing =
+                      minSpacing1 + minSpacing2 + minSpacing3;
+
+                  // 固定元素总高度
+                  final fixedHeight = padding +
+                      titleHeight +
+                      (track.artist != null ? artistHeight : 0.0) +
+                      controlsHeight +
+                      minTotalSpacing;
+
+                  // 可用于封面的高度
+                  final availableForCover = constraints.maxHeight - fixedHeight;
+
+                  // 封面最大高度限制
+                  final maxCoverHeight = constraints.maxHeight * 0.6;
+                  final coverHeight =
+                      availableForCover.clamp(120.0, maxCoverHeight);
+
+                  // 计算剩余可分配的空间
+                  final usedHeight = padding +
+                      coverHeight +
+                      titleHeight +
+                      (track.artist != null ? artistHeight : 0.0) +
+                      controlsHeight +
+                      minTotalSpacing;
+                  final extraSpace = (constraints.maxHeight - usedHeight)
+                      .clamp(0.0, double.infinity);
+
+                  // 将额外空间分配到间距上
+                  final spacing1 = minSpacing1 + (extraSpace * 0.4);
+                  final spacing2 = minSpacing2 + (extraSpace * 0.1);
+                  final spacing3 = minSpacing3 + (extraSpace * 0.5);
+
+                  // 判断是否需要滚动
+                  final needsScroll = usedHeight > constraints.maxHeight;
+
+                  final content = Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisAlignment: needsScroll
+                          ? MainAxisAlignment.start
+                          : MainAxisAlignment.center,
+                      children: [
+                        // 封面
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: coverHeight,
+                            maxWidth: constraints.maxWidth - 32,
+                          ),
+                          child: PlayerCoverWidget(
+                            track: track,
+                            workCoverUrl: workCoverUrl,
+                            isLandscape: true,
+                          ),
+                        ),
+                        SizedBox(height: spacing1),
+                        // 标题
                         Text(
-                          track.artist!,
+                          track.title,
                           style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurfaceVariant,
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
                                   ),
                           textAlign: TextAlign.center,
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        if (track.artist != null) ...[
+                          SizedBox(height: spacing2),
+                          Text(
+                            track.artist!,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                        SizedBox(height: spacing3),
+                        // 控制组件
+                        PlayerControlsWidget(
+                          isLandscape: true,
+                          audioState: audioState,
+                          isPlaying: isPlaying,
+                          position: position,
+                          duration: duration,
+                          isSeekingManually: _isSeekingManually,
+                          seekValue: _seekValue,
+                          onSeekChanged: _handleSeekChanged,
+                          onSeekEnd: _handleSeekEnd,
+                          seekingPosition: _seekingPosition,
+                        ),
                       ],
-                      const SizedBox(height: 24),
-                      PlayerControlsWidget(
-                        isLandscape: true,
-                        audioState: audioState,
-                        isPlaying: isPlaying,
-                        position: position,
-                        duration: duration,
-                        isSeekingManually: _isSeekingManually,
-                        seekValue: _seekValue,
-                        onSeekChanged: _handleSeekChanged,
-                        onSeekEnd: _handleSeekEnd,
-                        seekingPosition: _seekingPosition,
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
+                  );
+
+                  // 根据是否需要滚动返回不同的widget
+                  return needsScroll
+                      ? SingleChildScrollView(child: content)
+                      : content;
+                },
               ),
             ),
             const VerticalDivider(width: 1, thickness: 1),
