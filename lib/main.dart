@@ -6,6 +6,7 @@ import 'package:dynamic_color/dynamic_color.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'src/screens/login_screen.dart';
 import 'src/screens/main_screen.dart';
@@ -24,6 +25,25 @@ void main() async {
   // Initialize just_audio_media_kit for desktop platforms
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     JustAudioMediaKit.ensureInitialized();
+  }
+
+  // Set minimum window size for desktop platforms
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+    await windowManager.ensureInitialized();
+
+    WindowOptions windowOptions = const WindowOptions(
+      size: Size(1280, 720),
+      minimumSize: Size(350, 600),
+      center: true,
+      backgroundColor: Colors.transparent,
+      skipTaskbar: false,
+      titleBarStyle: TitleBarStyle.normal,
+    );
+
+    windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await windowManager.show();
+      await windowManager.focus();
+    });
   }
 
   // Initialize Hive for local storage
