@@ -108,39 +108,39 @@ class _PlayerControlsWidgetState extends ConsumerState<PlayerControlsWidget> {
     );
   }
 
-  IconData _getProgressIcon(String? progress) {
-    switch (progress) {
-      case 'marked':
-        return Icons.favorite;
-      case 'listening':
-        return Icons.headphones;
-      case 'listened':
-        return Icons.check_circle;
-      case 'replay':
-        return Icons.replay;
-      case 'postponed':
-        return Icons.schedule;
-      default:
-        return Icons.favorite_border;
-    }
-  }
+  // IconData _getProgressIcon(String? progress) {
+  //   switch (progress) {
+  //     case 'marked':
+  //       return Icons.favorite;
+  //     case 'listening':
+  //       return Icons.headphones;
+  //     case 'listened':
+  //       return Icons.check_circle;
+  //     case 'replay':
+  //       return Icons.replay;
+  //     case 'postponed':
+  //       return Icons.schedule;
+  //     default:
+  //       return Icons.favorite_border;
+  //   }
+  // }
 
-  String _getProgressLabel(String? progress) {
-    switch (progress) {
-      case 'marked':
-        return '想听';
-      case 'listening':
-        return '在听';
-      case 'listened':
-        return '听过';
-      case 'replay':
-        return '重听';
-      case 'postponed':
-        return '搁置';
-      default:
-        return '标记';
-    }
-  }
+  // String _getProgressLabel(String? progress) {
+  //   switch (progress) {
+  //     case 'marked':
+  //       return '想听';
+  //     case 'listening':
+  //       return '在听';
+  //     case 'listened':
+  //       return '听过';
+  //     case 'replay':
+  //       return '重听';
+  //     case 'postponed':
+  //       return '搁置';
+  //     default:
+  //       return '标记';
+  //   }
+  // }
 
   void _showMoreMenu(BuildContext context, WidgetRef ref) {
     final isDesktop = !Platform.isAndroid && !Platform.isIOS;
