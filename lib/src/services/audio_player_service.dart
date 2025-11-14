@@ -288,6 +288,10 @@ class AudioPlayerService {
   void _handleTrackCompletion() {
     if (_appLoopMode == LoopMode.one) {
       // Single track repeat - replay current track
+      // macOS: Reset completion flag before replaying to allow next completion detection
+      if (Platform.isMacOS) {
+        _completionHandled = false;
+      }
       seek(Duration.zero);
       play();
     } else if (_currentIndex < _queue.length - 1) {
@@ -364,6 +368,10 @@ class AudioPlayerService {
   }
 
   Future<void> seek(Duration position) async {
+    // macOS specific: Reset completion flag when seeking to allow new completion detection
+    if (Platform.isMacOS) {
+      _completionHandled = false;
+    }
     await _player.seek(position);
     _updatePlaybackState();
   }
