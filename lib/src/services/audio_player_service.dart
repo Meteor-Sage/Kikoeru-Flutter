@@ -115,7 +115,6 @@ class AudioPlayerService {
       Duration lastPosition = Duration.zero;
       _player.positionStream.listen((position) {
         final duration = _player.duration;
-        final processingState = _player.processingState;
 
         // Reset completion flag when track changes or seeks backward
         if (position < lastPosition - const Duration(seconds: 1)) {
