@@ -90,8 +90,8 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                  '已设置为：${ReviewProgressDialog.getLabelForProgress(value)}'),
+              content:
+                  Text('已设置为：${ReviewProgressDialog.getProgressLabel(value)}'),
               behavior: SnackBarBehavior.floating,
               duration: const Duration(seconds: 2),
             ),

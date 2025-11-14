@@ -15,6 +15,7 @@ import '../widgets/va_chip.dart';
 import '../widgets/circle_chip.dart';
 import '../widgets/responsive_dialog.dart';
 import '../widgets/work_bookmark_manager.dart';
+import '../widgets/review_progress_dialog.dart';
 
 class WorkDetailScreen extends ConsumerStatefulWidget {
   final Work work;
@@ -390,7 +391,7 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            WorkBookmarkManager.getProgressLabel(
+                            ReviewProgressDialog.getProgressLabel(
                                 _currentProgress),
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
@@ -402,7 +403,7 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                           ),
                           const SizedBox(width: 4),
                           Icon(
-                            WorkBookmarkManager.getProgressIcon(
+                            ReviewProgressDialog.getProgressIcon(
                                 _currentProgress),
                             size: 22,
                             color: _currentProgress != null

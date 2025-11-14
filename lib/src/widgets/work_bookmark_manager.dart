@@ -62,12 +62,7 @@ class WorkBookmarkManager {
           );
 
           // 获取标记的显示名称
-          final filterLabel = MyReviewFilter.values
-              .firstWhere(
-                (f) => f.value == result,
-                orElse: () => MyReviewFilter.all,
-              )
-              .label;
+          final filterLabel = ReviewProgressDialog.getProgressLabel(result);
 
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -101,43 +96,5 @@ class WorkBookmarkManager {
     }
 
     return null;
-  }
-
-  /// 获取状态标签文本
-  static String getProgressLabel(String? progress) {
-    if (progress == null) return '标记';
-
-    final filter = [
-      MyReviewFilter.marked,
-      MyReviewFilter.listening,
-      MyReviewFilter.listened,
-      MyReviewFilter.replay,
-      MyReviewFilter.postponed,
-    ].firstWhere(
-      (f) => f.value == progress,
-      orElse: () => MyReviewFilter.all,
-    );
-
-    return filter.label;
-  }
-
-  /// 获取状态对应的图标
-  static IconData getProgressIcon(String? progress) {
-    if (progress == null) return Icons.bookmark_border;
-
-    switch (progress) {
-      case 'marked':
-        return Icons.bookmark;
-      case 'listening':
-        return Icons.headphones;
-      case 'listened':
-        return Icons.check_circle;
-      case 'replay':
-        return Icons.replay;
-      case 'postponed':
-        return Icons.schedule;
-      default:
-        return Icons.bookmark;
-    }
   }
 }

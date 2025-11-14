@@ -264,7 +264,7 @@ class ReviewProgressDialog {
   }
 
   /// 获取状态标签
-  static String getLabelForProgress(String? value) {
+  static String getProgressLabel(String? value) {
     if (value == null) return '未收藏';
     final found = [
       MyReviewFilter.marked,
@@ -278,4 +278,27 @@ class ReviewProgressDialog {
     );
     return found.label;
   }
+
+  /// 获取状态对应的图标
+  static IconData getProgressIcon(String? progress) {
+    if (progress == null) return Icons.bookmark_border;
+
+    switch (progress) {
+      case 'marked':
+        return Icons.bookmark;
+      case 'listening':
+        return Icons.headphones;
+      case 'listened':
+        return Icons.check_circle;
+      case 'replay':
+        return Icons.replay;
+      case 'postponed':
+        return Icons.schedule;
+      default:
+        return Icons.bookmark;
+    }
+  }
+
+  /// @deprecated 使用 getProgressLabel 替代
+  static String getLabelForProgress(String? value) => getProgressLabel(value);
 }
