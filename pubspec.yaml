@@ -3,7 +3,7 @@ description: A cross-platform Flutter app for browsing and playing Kikoeru serve
 
 publish_to: 'none'
 
-version: 1.0.2+0721
+version: 1.0.5+0721
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -98,7 +98,7 @@ msix_config:
   display_name: KikoFlu
   publisher_display_name: KikoFlu Dev
   identity_name: com.meteor.kikoeruflutter
-  msix_version: 1.0.2.721
+  msix_version: 1.0.5.0721
   logo_path: assets\icons\app_icon.ico
   capabilities: internetClient, musicLibrary, privateNetworkClientServer
   languages: zh-CN, en-US, ja-JP
