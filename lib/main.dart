@@ -21,12 +21,9 @@ import 'src/providers/theme_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize just_audio_media_kit for platforms that require it
-  if (Platform.isWindows || Platform.isLinux) {
+  // Initialize just_audio_media_kit for desktop platforms
+  if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     JustAudioMediaKit.ensureInitialized();
-  } else if (Platform.isMacOS) {
-    // macOS keeps the default just_audio backend until media_kit fixes completed events
-    print('[Audio] Using default just_audio backend on macOS.');
   }
 
   // Initialize Hive for local storage
