@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -211,4 +212,112 @@ class MiniPlayerVisibilityController extends StateNotifier<bool> {
 final miniPlayerVisibilityProvider =
     StateNotifierProvider<MiniPlayerVisibilityController, bool>((ref) {
   return MiniPlayerVisibilityController();
+});
+
+// Sleep Timer Controller
+class SleepTimerController extends StateNotifier<SleepTimerState> {
+  final Ref _ref;
+  Timer? _timer;
+  Timer? _countdownTimer;
+
+  SleepTimerController(this._ref) : super(const SleepTimerState());
+
+  /// 设置睡眠定时器
+  void setTimer(Duration duration) {
+    // 取消现有定时器
+    cancelTimer();
+
+    final endTime = DateTime.now().add(duration);
+
+    // 设置主定时器 - 到时间后暂停播放
+    _timer = Timer(duration, () {
+      final audioController = _ref.read(audioPlayerControllerProvider.notifier);
+      audioController.pause();
+      // 定时器结束后重置状态
+      state = const SleepTimerState();
+      _timer = null;
+      _countdownTimer?.cancel();
+      _countdownTimer = null;
+    });
+
+    // 设置倒计时更新定时器 - 每秒更新一次剩余时间
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      final remaining = endTime.difference(DateTime.now());
+      if (remaining.isNegative) {
+        timer.cancel();
+        return;
+      }
+      state = SleepTimerState(
+        isActive: true,
+        endTime: endTime,
+        remainingTime: remaining,
+      );
+    });
+
+    state = SleepTimerState(
+      isActive: true,
+      endTime: endTime,
+      remainingTime: duration,
+    );
+  }
+
+  /// 取消睡眠定时器
+  void cancelTimer() {
+    _timer?.cancel();
+    _timer = null;
+    _countdownTimer?.cancel();
+    _countdownTimer = null;
+    state = const SleepTimerState();
+  }
+
+  /// 添加时间（延长定时器）
+  void addTime(Duration duration) {
+    if (state.isActive && state.endTime != null) {
+      final newEndTime = state.endTime!.add(duration);
+      final newRemaining = newEndTime.difference(DateTime.now());
+
+      // 重新设置定时器
+      setTimer(newRemaining);
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
+}
+
+// Sleep Timer State
+class SleepTimerState {
+  final bool isActive;
+  final DateTime? endTime;
+  final Duration? remainingTime;
+
+  const SleepTimerState({
+    this.isActive = false,
+    this.endTime,
+    this.remainingTime,
+  });
+
+  String get formattedTime {
+    if (remainingTime == null) return '';
+
+    final hours = remainingTime!.inHours;
+    final minutes = remainingTime!.inMinutes.remainder(60);
+    final seconds = remainingTime!.inSeconds.remainder(60);
+
+    if (hours > 0) {
+      return '${hours}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+    } else {
+      return '${minutes}:${seconds.toString().padLeft(2, '0')}';
+    }
+  }
+}
+
+// Sleep Timer Provider
+final sleepTimerProvider =
+    StateNotifierProvider<SleepTimerController, SleepTimerState>((ref) {
+  return SleepTimerController(ref);
 });

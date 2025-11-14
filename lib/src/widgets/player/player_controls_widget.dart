@@ -6,6 +6,7 @@ import 'package:just_audio/just_audio.dart';
 import '../../providers/audio_provider.dart';
 import '../responsive_dialog.dart';
 import '../volume_control.dart';
+import 'sleep_timer_button.dart';
 
 /// 播放器控制组件
 class PlayerControlsWidget extends ConsumerStatefulWidget {
@@ -295,6 +296,10 @@ class _PlayerControlsWidgetState extends ConsumerState<PlayerControlsWidget> {
                 ),
                 if (!widget.isLandscape) const SizedBox(height: 14),
               ],
+            ),
+            // Sleep timer button
+            SleepTimerButton(
+              iconSize: widget.isLandscape ? 24 : null,
             ),
             // Volume control (desktop only)
             if (!Platform.isAndroid && !Platform.isIOS)
