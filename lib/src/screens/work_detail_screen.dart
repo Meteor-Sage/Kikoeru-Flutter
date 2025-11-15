@@ -982,7 +982,7 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                     ),
                     child: Icon(
                       Icons.add,
-                      size: 14,
+                      size: 16,
                       color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
