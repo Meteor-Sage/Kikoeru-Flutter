@@ -142,6 +142,67 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isLoading = false);
   }
 
+  // 游客登录
+  Future<void> _loginAsGuest() async {
+    // 验证服务器地址
+    if (_hostValue.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('请先输入服务器地址'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final host = _hostValue.trim();
+    const guestUsername = 'guest';
+    const guestPassword = 'guest';
+
+    try {
+      final success = await ref
+          .read(authProvider.notifier)
+          .login(guestUsername, guestPassword, host);
+
+      if (success && mounted) {
+        if (widget.isAddingAccount) {
+          // Adding account mode - just go back
+          Navigator.pop(context, true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('游客账户已添加')),
+          );
+        } else {
+          // Normal login - go to main screen
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const MainScreen()),
+            (route) => false,
+          );
+        }
+      } else if (mounted) {
+        final error = ref.read(authProvider).error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error ?? '游客登录失败'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('游客登录失败'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+
+    setState(() => _isLoading = false);
+  }
+
   void _toggleMode() {
     setState(() {
       _isLogin = !_isLogin;
@@ -193,8 +254,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ? Theme.of(context).colorScheme.onSurfaceVariant
         : _latencyColorForResult(context, result);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         TextButton.icon(
           style: TextButton.styleFrom(
@@ -213,11 +275,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               : const Icon(Icons.network_ping_outlined),
           label: Text(isTesting ? '测试中...' : '测试连接'),
         ),
-        const SizedBox(height: 4),
-        Text(
-          statusText,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color),
-          textAlign: TextAlign.right,
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            statusText,
+            style:
+                Theme.of(context).textTheme.bodySmall?.copyWith(color: color),
+            textAlign: TextAlign.right,
+          ),
         ),
       ],
     );
@@ -354,6 +419,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
     return Scaffold(
       appBar: ScrollableAppBar(
         title: Text(widget.isAddingAccount
@@ -364,191 +432,266 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         automaticallyImplyLeading: widget.isAddingAccount,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Logo/Header
-                Container(
-                  height: 120,
-                  margin: const EdgeInsets.only(bottom: 48),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.audiotrack,
-                        size: 64,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Kikoeru',
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineMedium
-                            ?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
+        child: isLandscape ? _buildLandscapeLayout() : _buildPortraitLayout(),
+      ),
+    );
+  }
 
-                // Username field
-                TextFormField(
-                  controller: _usernameController,
-                  decoration: const InputDecoration(
-                    labelText: '用户名',
-                    prefixIcon: Icon(Icons.person),
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return '请输入用户名';
-                    }
-                    if (!_isLogin && value.trim().length < 3) {
-                      return '用户名至少需要3个字符';
-                    }
-                    return null;
-                  },
-                  textInputAction: TextInputAction.next,
-                ),
-
-                const SizedBox(height: 16),
-
-                // Password field
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: '密码',
-                    prefixIcon: const Icon(Icons.lock),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
+  // 竖屏布局
+  Widget _buildPortraitLayout() {
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Logo/Header
+              Container(
+                height: 120,
+                margin: const EdgeInsets.only(bottom: 48),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Image.asset(
+                      'assets/icons/app_icon.ico',
+                      width: 64,
+                      height: 64,
+                      errorBuilder: (context, error, stackTrace) {
+                        // 如果图片加载失败，显示默认图标
+                        return Icon(
+                          Icons.audiotrack,
+                          size: 64,
+                          color: Theme.of(context).colorScheme.primary,
+                        );
                       },
                     ),
-                    border: const OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return '请输入密码';
-                    }
-                    if (!_isLogin && value.length < 6) {
-                      return '密码至少需要6个字符';
-                    }
-                    return null;
-                  },
-                  textInputAction: TextInputAction.next,
-                ),
-
-                const SizedBox(height: 16),
-                // Host field with dropdown/autocomplete
-                Autocomplete<String>(
-                  initialValue: TextEditingValue(text: _hostValue),
-                  optionsBuilder: (textEditingValue) {
-                    final query = textEditingValue.text.trim().toLowerCase();
-                    if (query.isEmpty) {
-                      return _hostOptions;
-                    }
-                    return _hostOptions.where(
-                      (option) => option.toLowerCase().contains(query),
-                    );
-                  },
-                  fieldViewBuilder: (
-                    context,
-                    textEditingController,
-                    focusNode,
-                    onFieldSubmitted,
-                  ) {
-                    return TextFormField(
-                      controller: textEditingController,
-                      focusNode: focusNode,
-                      decoration: const InputDecoration(
-                        labelText: '服务器地址',
-                        prefixIcon: Icon(Icons.dns),
-                        border: OutlineInputBorder(),
-                        helperText: '支持自定义，如: localhost:8888 或 api.example.com',
-                      ),
-                      keyboardType: TextInputType.url,
-                      onChanged: (value) {
-                        setState(() {
-                          _hostValue = value;
-                        });
-                      },
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return '请输入服务器地址';
-                        }
-                        return null;
-                      },
-                      textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) => _submit(),
-                    );
-                  },
-                  onSelected: (selection) {
-                    setState(() {
-                      _hostValue = selection;
-                    });
-                  },
-                ),
-
-                const SizedBox(height: 8),
-                _buildHostLatencyActions(context),
-
-                const SizedBox(height: 32),
-
-                // Submit button
-                FilledButton(
-                  onPressed: _isLoading ? null : _submit,
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(_isLogin ? '登录' : '注册'),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Toggle mode button
-                TextButton(
-                  onPressed: _toggleMode,
-                  child: Text(
-                    _isLogin ? '没有账号？点击注册' : '已有账号？点击登录',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
+                    const SizedBox(height: 8),
+                    Text(
+                      'KikoFlu',
+                      style:
+                          Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
                     ),
-                  ),
+                  ],
                 ),
-
-                const SizedBox(height: 16),
-
-                // Help text
-                Text(
-                  '请确保 Kikoeru 服务器正在运行并且网络连接正常',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                ),
-              ],
-            ),
+              ),
+              ..._buildFormFields(),
+            ],
           ),
         ),
       ),
     );
+  }
+
+  // 横屏布局
+  Widget _buildLandscapeLayout() {
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Row(
+        children: [
+          // 左侧：Logo区域
+          Expanded(
+            flex: 2,
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Image.asset(
+                    'assets/icons/app_icon.ico',
+                    width: 80,
+                    height: 80,
+                    errorBuilder: (context, error, stackTrace) {
+                      // 如果图片加载失败，显示默认图标
+                      return Icon(
+                        Icons.audiotrack,
+                        size: 80,
+                        color: Theme.of(context).colorScheme.primary,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'KikoFlu',
+                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // 右侧：表单区域
+          Expanded(
+            flex: 3,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: _buildFormFields(),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 表单字段列表
+  List<Widget> _buildFormFields() {
+    return [
+      // Username field
+      TextFormField(
+        controller: _usernameController,
+        autofillHints: const [AutofillHints.username],
+        decoration: const InputDecoration(
+          labelText: '用户名',
+          prefixIcon: Icon(Icons.person),
+          border: OutlineInputBorder(),
+        ),
+        validator: (value) {
+          if (value == null || value.trim().isEmpty) {
+            return '请输入用户名';
+          }
+          if (!_isLogin && value.trim().length < 3) {
+            return '用户名至少需要3个字符';
+          }
+          return null;
+        },
+        textInputAction: TextInputAction.next,
+      ),
+
+      const SizedBox(height: 16),
+
+      // Password field
+      TextFormField(
+        controller: _passwordController,
+        autofillHints: const [AutofillHints.password],
+        obscureText: _obscurePassword,
+        decoration: InputDecoration(
+          labelText: '密码',
+          prefixIcon: const Icon(Icons.lock),
+          suffixIcon: IconButton(
+            icon: Icon(
+              _obscurePassword ? Icons.visibility : Icons.visibility_off,
+            ),
+            onPressed: () {
+              setState(() {
+                _obscurePassword = !_obscurePassword;
+              });
+            },
+          ),
+          border: const OutlineInputBorder(),
+        ),
+        validator: (value) {
+          if (value == null || value.isEmpty) {
+            return '请输入密码';
+          }
+          if (!_isLogin && value.length < 6) {
+            return '密码至少需要6个字符';
+          }
+          return null;
+        },
+        textInputAction: TextInputAction.next,
+      ),
+
+      const SizedBox(height: 16),
+
+      // Host field with dropdown/autocomplete
+      Autocomplete<String>(
+        initialValue: TextEditingValue(text: _hostValue),
+        optionsBuilder: (textEditingValue) {
+          // 始终显示所有推荐选项
+          return _hostOptions;
+        },
+        fieldViewBuilder: (
+          context,
+          textEditingController,
+          focusNode,
+          onFieldSubmitted,
+        ) {
+          return TextFormField(
+            controller: textEditingController,
+            focusNode: focusNode,
+            decoration: const InputDecoration(
+              labelText: '服务器地址',
+              prefixIcon: Icon(Icons.dns),
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: TextInputType.url,
+            onChanged: (value) {
+              setState(() {
+                _hostValue = value;
+              });
+            },
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return '请输入服务器地址';
+              }
+              return null;
+            },
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_) => _submit(),
+          );
+        },
+        onSelected: (selection) {
+          setState(() {
+            _hostValue = selection;
+          });
+        },
+      ),
+
+      const SizedBox(height: 8),
+      _buildHostLatencyActions(context),
+
+      const SizedBox(height: 15),
+
+      // Submit button
+      FilledButton(
+        onPressed: _isLoading ? null : _submit,
+        child: _isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Text(_isLogin ? '登录' : '注册'),
+      ),
+
+      const SizedBox(height: 12),
+
+      // Guest login button (only show in login mode)
+      if (_isLogin)
+        OutlinedButton.icon(
+          onPressed: _isLoading ? null : _loginAsGuest,
+          icon: const Icon(Icons.person_outline),
+          label: const Text('游客模式'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.secondary,
+          ),
+        ),
+
+      const SizedBox(height: 16),
+
+      // Toggle mode button
+      TextButton(
+        onPressed: _toggleMode,
+        child: Text(
+          _isLogin ? '没有账号？点击注册' : '已有账号？点击登录',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      ),
+    ];
   }
 }
