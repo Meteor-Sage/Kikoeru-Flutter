@@ -48,7 +48,7 @@ class WorksState extends Equatable {
     this.totalCount = 0,
     this.hasMore = true,
     this.layoutType = LayoutType.bigGrid, // 默认大网格布局
-    this.sortOption = SortOrder.createDate,
+    this.sortOption = SortOrder.release,
     this.sortDirection = SortDirection.desc,
     this.displayMode = DisplayMode.all, // 默认显示全部作品
     this.subtitleFilter = 0, // 默认显示全部

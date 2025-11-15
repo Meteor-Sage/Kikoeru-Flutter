@@ -1,6 +1,6 @@
 enum SortOrder {
-  createDate('create_date', '创建日期'),
   release('release', '发布日期'),
+  createDate('create_date', '创建日期'),
   rating('rate_average_2dp', '评分'),
   review('review_count', '评论数'),
   randomSeed('random', '随机'),
