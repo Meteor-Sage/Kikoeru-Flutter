@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -68,19 +69,25 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
 
         final displayProgress = _isDragging ? _dragValue : progress;
 
-        // Build work cover URL from host/token + track.workId
+        // Build work cover URL（优先使用本地文件）
         String? workCoverUrl;
-        final host = authState.host ?? '';
-        final token = authState.token ?? '';
-        if (track.workId != null && host.isNotEmpty) {
-          var normalizedHost = host;
-          if (!normalizedHost.startsWith('http://') &&
-              !normalizedHost.startsWith('https://')) {
-            normalizedHost = 'https://$normalizedHost';
+        // 优先使用 track.artworkUrl（可能是本地文件 file://）
+        if (track.artworkUrl != null &&
+            track.artworkUrl!.startsWith('file://')) {
+          workCoverUrl = track.artworkUrl;
+        } else if (track.workId != null) {
+          final host = authState.host ?? '';
+          final token = authState.token ?? '';
+          if (host.isNotEmpty) {
+            var normalizedHost = host;
+            if (!normalizedHost.startsWith('http://') &&
+                !normalizedHost.startsWith('https://')) {
+              normalizedHost = 'https://$normalizedHost';
+            }
+            workCoverUrl = token.isNotEmpty
+                ? '$normalizedHost/api/cover/${track.workId}?token=$token'
+                : '$normalizedHost/api/cover/${track.workId}';
           }
-          workCoverUrl = token.isNotEmpty
-              ? '$normalizedHost/api/cover/${track.workId}?token=$token'
-              : '$normalizedHost/api/cover/${track.workId}';
         }
 
         return Dismissible(
@@ -353,26 +360,49 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                                             ? ClipRRect(
                                                 borderRadius:
                                                     BorderRadius.circular(8),
-                                                child: CachedNetworkImage(
-                                                  imageUrl: (workCoverUrl ??
-                                                      track.artworkUrl)!,
-                                                  // 使用workId作为cacheKey，与作品详情页保持一致
-                                                  cacheKey: track.workId != null
-                                                      ? 'work_cover_${track.workId}'
-                                                      : null,
-                                                  fit: BoxFit.cover,
-                                                  errorWidget:
-                                                      (context, url, error) {
-                                                    return const Icon(
-                                                        Icons.album,
-                                                        size: 32);
-                                                  },
-                                                  placeholder: (context, url) =>
-                                                      const Center(
-                                                    child:
-                                                        CircularProgressIndicator(),
-                                                  ),
-                                                ),
+                                                child: (workCoverUrl ??
+                                                                track
+                                                                    .artworkUrl)
+                                                            ?.startsWith(
+                                                                'file://') ??
+                                                        false
+                                                    ? Image.file(
+                                                        File((workCoverUrl ??
+                                                                track
+                                                                    .artworkUrl)!
+                                                            .replaceFirst(
+                                                                'file://', '')),
+                                                        fit: BoxFit.cover,
+                                                        errorBuilder: (context,
+                                                            error, stackTrace) {
+                                                          return const Icon(
+                                                              Icons.album,
+                                                              size: 32);
+                                                        },
+                                                      )
+                                                    : CachedNetworkImage(
+                                                        imageUrl: (workCoverUrl ??
+                                                            track.artworkUrl)!,
+                                                        // 使用workId作为cacheKey，与作品详情页保持一致
+                                                        cacheKey: track
+                                                                    .workId !=
+                                                                null
+                                                            ? 'work_cover_${track.workId}'
+                                                            : null,
+                                                        fit: BoxFit.cover,
+                                                        errorWidget: (context,
+                                                            url, error) {
+                                                          return const Icon(
+                                                              Icons.album,
+                                                              size: 32);
+                                                        },
+                                                        placeholder:
+                                                            (context, url) =>
+                                                                const Center(
+                                                          child:
+                                                              CircularProgressIndicator(),
+                                                        ),
+                                                      ),
                                               )
                                             : const Icon(
                                                 Icons.album,

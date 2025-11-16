@@ -106,7 +106,8 @@ class DownloadService {
 
       final workDir = await _getWorkDownloadDirectory(workId);
       final metadataFile = File('$workDir/work_metadata.json');
-      await metadataFile.writeAsString(jsonEncode(metadata));
+      final jsonStr = jsonEncode(metadata);
+      await metadataFile.writeAsString(jsonStr);
     } catch (e) {
       print('[Download] 保存作品元数据失败: $e');
     }
@@ -117,6 +118,7 @@ class DownloadService {
     try {
       final workDir = await _getWorkDownloadDirectory(workId);
       final metadataFile = File('$workDir/work_metadata.json');
+
       if (await metadataFile.exists()) {
         final content = await metadataFile.readAsString();
         final metadata = jsonDecode(content) as Map<String, dynamic>;
@@ -329,12 +331,11 @@ class DownloadService {
         },
       );
 
-      _updateTask(
-          task.copyWith(
-            status: DownloadStatus.completed,
-            completedAt: DateTime.now(),
-          ),
-          immediate: true); // 完成时立即保存
+      final completedTask = task.copyWith(
+        status: DownloadStatus.completed,
+        completedAt: DateTime.now(),
+      );
+      _updateTask(completedTask, immediate: true); // 完成时立即保存
       _cancelTokens.remove(task.id);
     } catch (e) {
       if (e is DioException && e.type == DioExceptionType.cancel) {

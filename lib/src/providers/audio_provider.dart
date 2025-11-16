@@ -95,8 +95,14 @@ class AudioPlayerController extends StateNotifier<AudioPlayerState> {
   }
 
   Future<void> playTracks(List<AudioTrack> tracks, {int startIndex = 0}) async {
+    print(
+        '[AudioController] playTracks调用: ${tracks.length}个轨道, startIndex=$startIndex');
+    print(
+        '[AudioController] 第一个轨道: title="${tracks.first.title}", url="${tracks.first.url}"');
     await _service.updateQueue(tracks, startIndex: startIndex);
+    print('[AudioController] updateQueue完成');
     await _service.play();
+    print('[AudioController] play完成');
   }
 
   Future<void> play() async {

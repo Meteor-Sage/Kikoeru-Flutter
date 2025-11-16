@@ -45,6 +45,8 @@ class LyricController extends StateNotifier<LyricState> {
   // 根据音频轨道查找并加载歌词
   Future<void> loadLyricForTrack(
       AudioTrack track, List<dynamic> allFiles) async {
+    print(
+        '[Lyric] 尝试加载: track="${track.title}", workId=${track.workId}, 文件数=${allFiles.length}');
     state = state.copyWith(isLoading: true, error: null);
 
     try {
@@ -52,9 +54,13 @@ class LyricController extends StateNotifier<LyricState> {
       final lyricFile = _findLyricFile(track, allFiles);
 
       if (lyricFile == null) {
+        print('[Lyric] 未找到匹配歌词: track="${track.title}"');
         state = LyricState(lyrics: [], isLoading: false);
         return;
       }
+
+      print(
+          '[Lyric] 找到匹配歌词: title="${lyricFile['title']}", type="${lyricFile['type']}", hash=${lyricFile['hash']}');
 
       // 获取认证信息
       final authState = ref.read(authProvider);
@@ -165,6 +171,7 @@ class LyricController extends StateNotifier<LyricState> {
         // 规则1: 完全匹配（音频文件名 + 文本扩展名）
         for (final ext in textExtensions) {
           if (fileName == '${trackTitle.toLowerCase()}$ext') {
+            print('[Lyric] 规则1匹配: track="${track.title}", lyric="$fileName"');
             return file;
           }
         }
@@ -172,6 +179,7 @@ class LyricController extends StateNotifier<LyricState> {
         // 规则2: 去掉音频扩展名后匹配（音频文件名去后缀 + 文本扩展名）
         for (final ext in textExtensions) {
           if (fileName == '${audioNameWithoutExt.toLowerCase()}$ext') {
+            print('[Lyric] 规则2匹配: track="${track.title}", lyric="$fileName"');
             return file;
           }
         }

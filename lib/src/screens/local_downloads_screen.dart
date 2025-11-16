@@ -207,7 +207,11 @@ class _LocalDownloadsScreenState extends ConsumerState<LocalDownloadsScreen>
   }
 
   void _openWorkDetail(int workId, DownloadTask task) async {
+    print(
+        '[LocalDownloads] 打开作品详情: workId=$workId, hasMetadata=${task.workMetadata != null}');
+
     if (task.workMetadata == null) {
+      print('[LocalDownloads] 错误：任务没有元数据');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('该下载任务没有保存作品详情，无法离线查看'),
@@ -252,7 +256,12 @@ class _LocalDownloadsScreenState extends ConsumerState<LocalDownloadsScreen>
   }
 
   Map<String, dynamic> _sanitizeMetadata(Map<String, dynamic> metadata) {
-    return _deepSanitize(metadata) as Map<String, dynamic>;
+    try {
+      return _deepSanitize(metadata) as Map<String, dynamic>;
+    } catch (e) {
+      print('[LocalDownloads] 清理元数据时出错: $e');
+      rethrow;
+    }
   }
 
   dynamic _deepSanitize(dynamic value) {
@@ -267,57 +276,24 @@ class _LocalDownloadsScreenState extends ConsumerState<LocalDownloadsScreen>
       return value.map(_deepSanitize).toList();
     }
 
-    // 处理特殊类型对象
-    if (value.runtimeType.toString() == 'Va') {
-      return {
-        'id': _getProperty(value, 'id'),
-        'name': _getProperty(value, 'name'),
-      };
-    }
-
-    if (value.runtimeType.toString() == 'Tag') {
-      return {
-        'id': _getProperty(value, 'id'),
-        'name': _getProperty(value, 'name'),
-      };
-    }
-
-    if (value.runtimeType.toString() == 'AudioFile') {
-      return {
-        'title': _getProperty(value, 'title'),
-        'type': _getProperty(value, 'type'),
-        'hash': _getProperty(value, 'hash'),
-        'children': _deepSanitize(_getProperty(value, 'children')),
-        'size': _getProperty(value, 'size'),
-        'mediaDownloadUrl': _getProperty(value, 'mediaDownloadUrl'),
-      };
-    }
-
-    if (value.runtimeType.toString() == 'RatingDetail') {
-      return {
-        'review_point': _getProperty(value, 'review_point'),
-        'count': _getProperty(value, 'count'),
-        'ratio': _getProperty(value, 'ratio'),
-      };
+    // 处理特殊类型对象 - 直接调用toJson()方法
+    if (value.runtimeType.toString() == 'Va' ||
+        value.runtimeType.toString() == 'Tag' ||
+        value.runtimeType.toString() == 'AudioFile' ||
+        value.runtimeType.toString() == 'RatingDetail' ||
+        value.runtimeType.toString() == 'OtherLanguageEdition') {
+      try {
+        // 尝试调用toJson方法
+        final json = (value as dynamic).toJson();
+        // 递归处理嵌套的children等字段
+        return _deepSanitize(json);
+      } catch (e) {
+        print('[LocalDownloads] 对象序列化失败 ${value.runtimeType}: $e');
+        return null;
+      }
     }
 
     return value;
-  }
-
-  dynamic _getProperty(dynamic obj, String propertyName,
-      {dynamic defaultValue}) {
-    try {
-      if (obj is Map) {
-        return obj[propertyName] ?? defaultValue;
-      }
-      final mirror = obj.runtimeType.toString();
-      if (mirror.contains(propertyName)) {
-        return (obj as dynamic).toJson()[propertyName] ?? defaultValue;
-      }
-      return defaultValue;
-    } catch (e) {
-      return defaultValue;
-    }
   }
 
   @override

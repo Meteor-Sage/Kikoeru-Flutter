@@ -76,7 +76,12 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
     }
   }
 
-  String? _buildWorkCoverUrl(int? workId) {
+  String? _buildWorkCoverUrl(int? workId, String? artworkUrl) {
+    // 优先使用 track.artworkUrl（可能是本地文件 file://）
+    if (artworkUrl != null && artworkUrl.startsWith('file://')) {
+      return artworkUrl;
+    }
+
     if (workId == null) return null;
 
     final authState = ref.read(authProvider);
@@ -233,7 +238,8 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
               });
             }
 
-            final workCoverUrl = _buildWorkCoverUrl(track.workId);
+            final workCoverUrl =
+                _buildWorkCoverUrl(track.workId, track.artworkUrl);
 
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
@@ -378,7 +384,7 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
           });
         }
 
-        final workCoverUrl = _buildWorkCoverUrl(track.workId);
+        final workCoverUrl = _buildWorkCoverUrl(track.workId, track.artworkUrl);
 
         return Row(
           children: [

@@ -191,6 +191,18 @@ class FileIconUtils {
     return title.endsWith('.pdf');
   }
 
+  /// 判断是否是音频文件
+  static bool _isAudioFile(String title) {
+    return title.endsWith('.mp3') ||
+        title.endsWith('.wav') ||
+        title.endsWith('.flac') ||
+        title.endsWith('.m4a') ||
+        title.endsWith('.aac') ||
+        title.endsWith('.ogg') ||
+        title.endsWith('.wma') ||
+        title.endsWith('.opus');
+  }
+
   /// 判断是否是字幕文件
   static bool isLyricFile(String title) {
     final lowerTitle = title.toLowerCase();
@@ -225,5 +237,13 @@ class FileIconUtils {
   static bool isVideoFile(Map<String, dynamic> file) {
     final title = (file['title'] ?? file['name'] ?? '').toLowerCase();
     return _isVideoFile(title);
+  }
+
+  /// 判断是否是音频文件（公开方法 - 用于 offline_file_explorer_widget）
+  static bool isAudioFile(Map<String, dynamic> file) {
+    final type = file['type'] ?? '';
+    final title = (file['title'] ?? file['name'] ?? '').toLowerCase();
+    final isAudio = type == 'audio' || _isAudioFile(title);
+    return isAudio;
   }
 }

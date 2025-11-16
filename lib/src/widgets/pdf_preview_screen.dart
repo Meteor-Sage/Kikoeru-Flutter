@@ -59,6 +59,37 @@ class _PdfPreviewScreenState extends State<PdfPreviewScreen> {
     });
 
     try {
+      // 优先检查是否是本地文件（file:// 协议）
+      if (widget.pdfUrl.startsWith('file://')) {
+        final localPath = widget.pdfUrl.substring(7); // 移除 'file://' 前缀
+        final localFile = File(localPath);
+
+        if (await localFile.exists()) {
+          if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
+            final uri = Uri.file(localPath);
+            if (await canLaunchUrl(uri)) {
+              await launchUrl(uri);
+              if (mounted) {
+                Navigator.of(context).pop();
+              }
+              return;
+            }
+          }
+
+          setState(() {
+            _localFilePath = localPath;
+            _isLoading = false;
+          });
+          return;
+        } else {
+          setState(() {
+            _errorMessage = '本地PDF文件不存在';
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+
       if (widget.workId != null &&
           widget.hash != null &&
           widget.hash!.isNotEmpty) {

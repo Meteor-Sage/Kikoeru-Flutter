@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 
@@ -66,6 +67,27 @@ class _TextPreviewScreenState extends State<TextPreviewScreen> {
     });
 
     try {
+      // 优先检查是否是本地文件（file:// 协议）
+      if (widget.textUrl.startsWith('file://')) {
+        final localPath = widget.textUrl.substring(7); // 移除 'file://' 前缀
+        final localFile = File(localPath);
+
+        if (await localFile.exists()) {
+          final content = await localFile.readAsString();
+          setState(() {
+            _content = content;
+            _isLoading = false;
+          });
+          return;
+        } else {
+          setState(() {
+            _errorMessage = '本地文件不存在';
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+
       if (widget.workId != null &&
           widget.hash != null &&
           widget.hash!.isNotEmpty) {

@@ -1,7 +1,8 @@
 import 'dart:async';
-import 'dart:io' show Platform;
+import 'dart:io';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:path/path.dart' as p;
 import 'package:smtc_windows/smtc_windows.dart';
 
 import '../models/audio_track.dart';
@@ -20,6 +21,16 @@ class AudioPlayerService {
   int _currentIndex = 0;
   AudioHandler? _audioHandler;
   LoopMode _appLoopMode = LoopMode.off; // Track loop mode at app level
+  String? _tempPlaybackFilePath; // 临时音频副本路径，用于规避字幕冲突
+  Directory? _tempAudioDirectory;
+
+  static const List<String> _lyricExtensions = [
+    '.lrc',
+    '.srt',
+    '.vtt',
+    '.ass',
+    '.ssa',
+  ];
 
   // macOS specific: Track completion state to prevent duplicate triggers
   bool _completionHandled = false;
@@ -206,17 +217,41 @@ class AudioPlayerService {
   }
 
   Future<void> _loadTrack(AudioTrack track) async {
+    print('[Audio] _loadTrack: title="${track.title}", url="${track.url}"');
     // Reset completion flag for new track (macOS specific)
     if (Platform.isMacOS) {
       _completionHandled = false;
     }
 
+    // 清理上一首歌创建的临时文件
+    await _cleanupTempPlaybackFile();
+
     try {
       String? audioFilePath;
       bool loaded = false;
 
-      // 如果有 hash，尝试使用缓存
-      if (track.hash != null && track.hash!.isNotEmpty) {
+      // 优先检查是否是本地文件（file:// 协议）
+      if (track.url.startsWith('file://')) {
+        final localPath = track.url.substring(7); // 移除 'file://' 前缀
+        final localFile = File(localPath);
+        print('[Audio] 检查本地文件: $localPath');
+
+        if (await localFile.exists()) {
+          final fileStat = await localFile.stat();
+          print(
+              '[Audio] 本地文件存在: size=${fileStat.size} bytes, modified=${fileStat.modified}');
+          final isolatedPath =
+              await _prepareLocalPlaybackPath(localPath) ?? localPath;
+          await _player.setFilePath(isolatedPath);
+          print('[Audio] 使用本地文件播放: ${track.title}');
+          loaded = true;
+        } else {
+          print('[Audio] 本地文件不存在: $localPath');
+        }
+      }
+
+      // 如果不是本地文件，且有 hash，尝试使用缓存
+      if (!loaded && track.hash != null && track.hash!.isNotEmpty) {
         audioFilePath = await CacheService.getCachedAudioFile(track.hash!);
 
         if (audioFilePath != null) {
@@ -241,7 +276,7 @@ class AudioPlayerService {
 
       if (!loaded) {
         await _player.setUrl(track.url);
-        print('[Audio] 流式播放: ${track.title}');
+        print('[Audio] 流式播放: ${track.url}');
       }
 
       _currentTrackController.add(track);
@@ -471,9 +506,73 @@ class AudioPlayerService {
   // Cleanup
   Future<void> dispose() async {
     _completionCheckTimer?.cancel();
+    await _cleanupTempPlaybackFile();
     await _queueController.close();
     await _currentTrackController.close();
     await _player.dispose();
+  }
+
+  Future<void> _cleanupTempPlaybackFile() async {
+    if (_tempPlaybackFilePath == null) return;
+    try {
+      final tempFile = File(_tempPlaybackFilePath!);
+      if (await tempFile.exists()) {
+        await tempFile.delete();
+        print('[Audio] 已删除临时音频文件: $_tempPlaybackFilePath');
+      }
+    } catch (e) {
+      print('[Audio] 删除临时音频文件失败: $e');
+    } finally {
+      _tempPlaybackFilePath = null;
+    }
+  }
+
+  Future<String?> _prepareLocalPlaybackPath(String originalPath) async {
+    final lowerPath = originalPath.toLowerCase();
+    final shouldInspect = lowerPath.endsWith('.wav') ||
+        lowerPath.endsWith('.flac') ||
+        lowerPath.endsWith('.m4a') ||
+        lowerPath.endsWith('.aac') ||
+        lowerPath.endsWith('.ogg') ||
+        lowerPath.endsWith('.opus') ||
+        lowerPath.endsWith('.mp3');
+
+    if (!shouldInspect) {
+      return null;
+    }
+
+    final file = File(originalPath);
+    final directory = file.parent;
+    final baseName = p.basenameWithoutExtension(originalPath);
+
+    for (final ext in _lyricExtensions) {
+      final lyricPath = p.join(directory.path, '$baseName$ext');
+      final lyricFile = File(lyricPath);
+      if (await lyricFile.exists()) {
+        print('[Audio] 检测到同名字幕文件: $lyricPath');
+        final tempDir = await _getTempAudioDirectory();
+        final newName =
+            '${baseName}_${DateTime.now().millisecondsSinceEpoch}${p.extension(originalPath)}';
+        final tempPath = p.join(tempDir.path, newName);
+        await file.copy(tempPath);
+        _tempPlaybackFilePath = tempPath;
+        print('[Audio] 已复制音频到临时路径: $tempPath');
+        return tempPath;
+      }
+    }
+
+    return null;
+  }
+
+  Future<Directory> _getTempAudioDirectory() async {
+    if (_tempAudioDirectory != null) return _tempAudioDirectory!;
+    final dir =
+        Directory(p.join(Directory.systemTemp.path, 'kikoflu_audio_temp'));
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    _tempAudioDirectory = dir;
+    return dir;
   }
 }
 
