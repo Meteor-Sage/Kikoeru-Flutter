@@ -192,31 +192,39 @@ class _FileSelectionDialogState extends ConsumerState<FileSelectionDialog> {
     }
   }
 
-  List<AudioFile> _getSelectedFiles() {
-    final selected = <AudioFile>[];
+  // 获取选中的文件及其相对路径
+  Map<AudioFile, String> _getSelectedFilesWithPaths() {
+    final selected = <AudioFile, String>{};
 
-    void processChildren(List<AudioFile> children) {
+    void processChildren(List<AudioFile> children, String parentPath) {
       for (final file in children) {
         if (file.type == 'file') {
           if (_selectedFiles[file.hash ?? ''] ?? false) {
-            selected.add(file);
+            selected[file] = parentPath;
           }
         } else if (file.children != null) {
-          processChildren(file.children!);
+          // 文件夹，递归处理子项
+          final folderPath =
+              parentPath.isEmpty ? file.title : '$parentPath/${file.title}';
+          processChildren(file.children!, folderPath);
         }
       }
     }
 
     if (widget.work.children != null) {
-      processChildren(widget.work.children!);
+      processChildren(widget.work.children!, '');
     }
 
     return selected;
   }
 
+  List<AudioFile> _getSelectedFiles() {
+    return _getSelectedFilesWithPaths().keys.toList();
+  }
+
   void _startDownload() async {
-    final selectedFiles = _getSelectedFiles();
-    if (selectedFiles.isEmpty) {
+    final selectedFilesWithPaths = _getSelectedFilesWithPaths();
+    if (selectedFilesWithPaths.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('请至少选择一个文件')),
@@ -233,17 +241,23 @@ class _FileSelectionDialogState extends ConsumerState<FileSelectionDialog> {
     final token = authState.token ?? '';
     final coverUrl = widget.work.getCoverImageUrl(host, token: token);
 
-    // 保存作品元数据用于离线预览
-    // 移除 children 字段避免存储大量文件列表数据
+    // 保存作品元数据用于离线预览，包含完整文件树
     final workJson = widget.work.toJson();
-    workJson.remove('children'); // 不保存文件列表，节省空间
+    // 保留 children 字段用于离线文件浏览
     final workMetadata = Map<String, dynamic>.from(workJson);
 
-    for (final file in selectedFiles) {
+    for (final entry in selectedFilesWithPaths.entries) {
+      final file = entry.key;
+      final relativePath = entry.value;
+
+      // 构建完整的文件名（包含路径）
+      final fullFileName =
+          relativePath.isEmpty ? file.title : '$relativePath/${file.title}';
+
       await downloadService.addTask(
         workId: widget.work.id,
         workTitle: widget.work.title,
-        fileName: file.title,
+        fileName: fullFileName, // 使用包含路径的文件名
         downloadUrl: file.mediaDownloadUrl ?? '',
         hash: file.hash,
         totalBytes: file.size,
@@ -255,7 +269,8 @@ class _FileSelectionDialogState extends ConsumerState<FileSelectionDialog> {
     if (mounted) {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已添加 ${selectedFiles.length} 个文件到下载队列')),
+        SnackBar(
+            content: Text('已添加 ${selectedFilesWithPaths.length} 个文件到下载队列')),
       );
     }
   }

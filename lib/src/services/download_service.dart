@@ -56,6 +56,11 @@ class DownloadService {
     return downloadDir;
   }
 
+  // 公开方法，用于获取下载根目录
+  Future<Directory> getDownloadDirectory() async {
+    return _getDownloadDirectory();
+  }
+
   Future<String> _getWorkDownloadDirectory(int workId) async {
     final downloadDir = await _getDownloadDirectory();
     final workDir = Directory('${downloadDir.path}/$workId');
@@ -93,8 +98,8 @@ class DownloadService {
       if (coverUrl != null && coverUrl.isNotEmpty) {
         final localCoverPath = await _downloadCoverImage(workId, coverUrl);
         if (localCoverPath != null) {
-          // 在元数据中添加本地封面路径
-          metadata['localCoverPath'] = localCoverPath;
+          // 在元数据中只保存相对路径，便于迁移
+          metadata['localCoverPath'] = 'cover.jpg';
         }
       }
 
@@ -113,7 +118,21 @@ class DownloadService {
       final metadataFile = File('$workDir/work_metadata.json');
       if (await metadataFile.exists()) {
         final content = await metadataFile.readAsString();
-        return jsonDecode(content) as Map<String, dynamic>;
+        final metadata = jsonDecode(content) as Map<String, dynamic>;
+
+        // 迁移旧的绝对路径为相对路径
+        if (metadata.containsKey('localCoverPath')) {
+          final coverPath = metadata['localCoverPath'] as String?;
+          if (coverPath != null && coverPath.contains(Platform.pathSeparator)) {
+            // 如果包含路径分隔符，说明是绝对路径，转换为相对路径
+            metadata['localCoverPath'] = 'cover.jpg';
+            // 保存更新后的元数据
+            await metadataFile.writeAsString(jsonEncode(metadata));
+            print('[Download] 已迁移作品 $workId 的封面路径为相对路径');
+          }
+        }
+
+        return metadata;
       }
     } catch (e) {
       print('[Download] 读取作品元数据失败: $e');
@@ -154,6 +173,7 @@ class DownloadService {
     int? totalBytes,
     Map<String, dynamic>? workMetadata,
     String? coverUrl,
+    String? relativePath, // 相对路径，用于按文件树组织
   }) async {
     // 检查是否已存在
     final existingTask = _tasks.firstWhere(
@@ -190,8 +210,13 @@ class DownloadService {
       if (cachedFile != null) {
         // 从缓存移动到下载目录
         final workDir = await _getWorkDownloadDirectory(workId);
-        final targetPath = '$workDir/$fileName';
+        final targetPath = relativePath != null && relativePath.isNotEmpty
+            ? '$workDir/$relativePath/$fileName'
+            : '$workDir/$fileName';
         final targetFile = File(targetPath);
+
+        // 确保目录存在
+        await targetFile.parent.create(recursive: true);
 
         if (!await targetFile.exists()) {
           await File(cachedFile).copy(targetPath);
@@ -264,7 +289,13 @@ class DownloadService {
         immediate: true);
 
     final workDir = await _getWorkDownloadDirectory(task.workId);
+    // 使用fileName中的路径信息（如果包含/）
     final filePath = '$workDir/${task.fileName}';
+    final file = File(filePath);
+
+    // 确保父目录存在
+    await file.parent.create(recursive: true);
+
     final cancelToken = CancelToken();
     _cancelTokens[task.id] = cancelToken;
 
@@ -516,49 +547,63 @@ class DownloadService {
         final metadata = await _loadWorkMetadata(workId);
         final workTitle = metadata?['title'] as String? ?? 'RJ$workId';
 
-        // 扫描文件夹中的所有文件
-        await for (final entity in workDir.list()) {
-          if (entity is File) {
-            final fileName = entity.path.split(Platform.pathSeparator).last;
+        // 递归扫描文件夹中的所有文件
+        Future<void> scanDirectory(Directory dir, String relativePath) async {
+          await for (final entity in dir.list()) {
+            if (entity is File) {
+              final fileName = entity.path.split(Platform.pathSeparator).last;
 
-            // 跳过元数据和封面文件
-            if (fileName == 'work_metadata.json' || fileName == 'cover.jpg') {
-              continue;
-            }
+              // 跳过元数据和封面文件
+              if (fileName == 'work_metadata.json' || fileName == 'cover.jpg') {
+                continue;
+              }
 
-            // 检查该文件是否已有对应的任务
-            final existingTask = _tasks.firstWhere(
-              (t) => t.workId == workId && t.fileName == fileName,
-              orElse: () => DownloadTask(
-                id: '',
-                workId: 0,
-                workTitle: '',
-                fileName: '',
-                downloadUrl: '',
-                createdAt: DateTime.now(),
-              ),
-            );
+              // 构建相对路径下的文件名
+              final fullFileName =
+                  relativePath.isEmpty ? fileName : '$relativePath/$fileName';
 
-            if (existingTask.id.isEmpty) {
-              // 发现新文件，创建任务
-              final newTask = DownloadTask(
-                id: '${workId}_${fileName}_${DateTime.now().millisecondsSinceEpoch}',
-                workId: workId,
-                workTitle: workTitle,
-                fileName: fileName,
-                downloadUrl: '', // 硬盘扫描的任务没有下载URL
-                status: DownloadStatus.completed,
-                totalBytes: await entity.length(),
-                downloadedBytes: await entity.length(),
-                createdAt: entity.statSync().modified,
-                completedAt: entity.statSync().modified,
-                workMetadata: metadata,
+              // 检查该文件是否已有对应的任务
+              final existingTask = _tasks.firstWhere(
+                (t) => t.workId == workId && t.fileName == fullFileName,
+                orElse: () => DownloadTask(
+                  id: '',
+                  workId: 0,
+                  workTitle: '',
+                  fileName: '',
+                  downloadUrl: '',
+                  createdAt: DateTime.now(),
+                ),
               );
-              newTasks.add(newTask);
-              print('[Download] 发现新文件: $fileName (${workTitle})');
+
+              if (existingTask.id.isEmpty) {
+                // 发现新文件，创建任务
+                final newTask = DownloadTask(
+                  id: '${workId}_${fullFileName}_${DateTime.now().millisecondsSinceEpoch}',
+                  workId: workId,
+                  workTitle: workTitle,
+                  fileName: fullFileName,
+                  downloadUrl: '', // 硬盘扫描的任务没有下载URL
+                  status: DownloadStatus.completed,
+                  totalBytes: await entity.length(),
+                  downloadedBytes: await entity.length(),
+                  createdAt: entity.statSync().modified,
+                  completedAt: entity.statSync().modified,
+                  workMetadata: metadata,
+                );
+                newTasks.add(newTask);
+                print('[Download] 发现新文件: $fullFileName (${workTitle})');
+              }
+            } else if (entity is Directory) {
+              // 递归扫描子目录
+              final dirName = entity.path.split(Platform.pathSeparator).last;
+              final subPath =
+                  relativePath.isEmpty ? dirName : '$relativePath/$dirName';
+              await scanDirectory(entity, subPath);
             }
           }
         }
+
+        await scanDirectory(workDir, '');
       }
 
       // 添加新任务

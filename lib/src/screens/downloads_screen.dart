@@ -689,7 +689,7 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen>
     );
   }
 
-  void _openWorkDetail(int workId, DownloadTask task) {
+  void _openWorkDetail(int workId, DownloadTask task) async {
     if (task.workMetadata == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -705,8 +705,12 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen>
       final metadata = _sanitizeMetadata(task.workMetadata!);
       final work = Work.fromJson(metadata);
 
-      // 从 metadata 中提取本地封面路径
-      final localCoverPath = metadata['localCoverPath'] as String?;
+      // 从 metadata 中提取本地封面路径，动态构建完整路径
+      final downloadDir = await DownloadService.instance.getDownloadDirectory();
+      final relativeCoverPath = metadata['localCoverPath'] as String?;
+      final localCoverPath = relativeCoverPath != null
+          ? '${downloadDir.path}/$workId/$relativeCoverPath'
+          : null;
 
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -752,10 +756,20 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen>
       // 基本类型直接返回
       return value;
     } else {
-      // 对于其他对象类型（如 Va、Tag 等），尝试调用 toJson
+      // 对于其他对象类型（如 Va、Tag、AudioFile 等），尝试调用 toJson
       try {
         final dynamic obj = value;
-        if (obj is Object && obj.runtimeType.toString().contains('Va')) {
+        if (obj is Object && obj.runtimeType.toString().contains('AudioFile')) {
+          // AudioFile 对象
+          return {
+            'title': (obj as dynamic).title,
+            'type': (obj as dynamic).type,
+            'hash': (obj as dynamic).hash,
+            'mediaDownloadUrl': (obj as dynamic).mediaDownloadUrl,
+            'size': (obj as dynamic).size,
+            'children': _deepSanitize((obj as dynamic).children),
+          };
+        } else if (obj is Object && obj.runtimeType.toString().contains('Va')) {
           // Va 对象
           return {
             'id': (obj as dynamic).id,

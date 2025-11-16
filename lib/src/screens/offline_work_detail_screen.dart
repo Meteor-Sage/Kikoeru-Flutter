@@ -10,6 +10,7 @@ import '../widgets/scrollable_appbar.dart';
 import '../widgets/tag_chip.dart';
 import '../widgets/va_chip.dart';
 import '../widgets/circle_chip.dart';
+import '../widgets/offline_file_explorer_widget.dart';
 
 /// 离线作品详情页 - 使用下载时保存的元数据展示作品信息
 /// 不依赖网络请求，完全离线可用
@@ -451,7 +452,37 @@ class _OfflineWorkDetailScreenState
                     height: 1.5,
                   ),
             ),
+            const SizedBox(height: 16),
           ],
+
+          // 文件浏览器
+          Text(
+            '已下载文件',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            constraints: const BoxConstraints(minHeight: 200, maxHeight: 400),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.withOpacity(0.3)),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: OfflineFileExplorerWidget(
+              work: work,
+              fileTree: work.children != null
+                  ? work.children!.map((e) {
+                      if (e is Map<String, dynamic>) {
+                        return e;
+                      }
+                      // 如果是 AudioFile 对象，转换为 Map
+                      return e.toJson();
+                    }).toList()
+                  : null,
+            ),
+          ),
         ],
       ),
     );
