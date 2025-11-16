@@ -254,7 +254,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ],
             ),
             title: const Text('关于'),
-            subtitle: const Text('版本信息、许可证等'),
+            subtitle: const Text('检查更新、许可证等'),
             trailing: const Icon(Icons.arrow_forward_ios),
             onTap: () {
               Navigator.of(context).push(

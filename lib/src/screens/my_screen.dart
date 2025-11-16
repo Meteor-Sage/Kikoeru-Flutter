@@ -5,8 +5,8 @@ import '../providers/my_reviews_provider.dart';
 import '../widgets/enhanced_work_card.dart';
 import '../widgets/pagination_bar.dart';
 import '../utils/responsive_grid_helper.dart';
-import '../widgets/scrollable_appbar.dart';
 import 'downloads_screen.dart';
+import 'local_downloads_screen.dart';
 export '../providers/my_reviews_provider.dart' show MyReviewLayoutType;
 
 class MyScreen extends ConsumerStatefulWidget {
@@ -17,8 +17,9 @@ class MyScreen extends ConsumerStatefulWidget {
 }
 
 class _MyScreenState extends ConsumerState<MyScreen>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
+  late TabController _tabController;
 
   @override
   bool get wantKeepAlive => true; // 保持状态不被销毁
@@ -26,6 +27,7 @@ class _MyScreenState extends ConsumerState<MyScreen>
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     // 只在首次加载时获取数据，如果已有数据则不重新加载
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final myState = ref.read(myReviewsProvider);
@@ -37,6 +39,7 @@ class _MyScreenState extends ConsumerState<MyScreen>
 
   @override
   void dispose() {
+    _tabController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -107,41 +110,51 @@ class _MyScreenState extends ConsumerState<MyScreen>
   }) {
     final theme = Theme.of(context);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: borderRadius ?? BorderRadius.zero,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.surfaceContainerHighest,
-            borderRadius: borderRadius ?? BorderRadius.zero,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isSelected
-                    ? theme.colorScheme.onPrimary
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 3),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? theme.colorScheme.primaryContainer
+                  : theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(20),
+              border: isSelected
+                  ? Border.all(
+                      color: theme.colorScheme.primary,
+                      width: 1.5,
+                    )
+                  : null,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: 18,
                   color: isSelected
-                      ? theme.colorScheme.onPrimary
+                      ? theme.colorScheme.primary
                       : theme.colorScheme.onSurfaceVariant,
                 ),
-              ),
-            ],
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    color: isSelected
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -151,19 +164,51 @@ class _MyScreenState extends ConsumerState<MyScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context); // 必须调用以保持状态
-    final state = ref.watch(myReviewsProvider);
 
+    return Scaffold(
+      appBar: AppBar(
+        toolbarHeight: 0,
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: '在线标记'),
+            Tab(text: '本地下载'),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _navigateToDownloads,
+        tooltip: '下载任务',
+        child: const Icon(Icons.download),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildOnlineBookmarksTab(),
+          const LocalDownloadsScreen(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOnlineBookmarksTab() {
+    final state = ref.watch(myReviewsProvider);
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
     final horizontalPadding = isLandscape ? 24.0 : 8.0;
 
-    return Scaffold(
-      appBar: ScrollableAppBar(
-        toolbarHeight: 48, // 设置工具栏高度
-        flexibleSpace: SafeArea(
+    return Column(
+      children: [
+        // 筛选和布局切换工具栏
+        Container(
+          height: 48,
+          color: Theme.of(context)
+              .colorScheme
+              .surfaceContainerHighest
+              .withOpacity(0.5),
           child: Row(
             children: [
-              // 第一列：可滚动的筛选按钮
+              // 可滚动的筛选按钮
               Expanded(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -171,36 +216,21 @@ class _MyScreenState extends ConsumerState<MyScreen>
                       horizontal: horizontalPadding, vertical: 6),
                   child: Row(
                     children: [
-                      for (int i = 0; i < MyReviewFilter.values.length; i++)
+                      for (final filter in MyReviewFilter.values)
                         _buildFilterButton(
-                          icon: _getFilterIcon(MyReviewFilter.values[i]),
-                          label: MyReviewFilter.values[i].label,
-                          isSelected: state.filter == MyReviewFilter.values[i],
+                          icon: _getFilterIcon(filter),
+                          label: filter.label,
+                          isSelected: state.filter == filter,
                           onTap: () => ref
                               .read(myReviewsProvider.notifier)
-                              .changeFilter(MyReviewFilter.values[i]),
-                          borderRadius: i == 0
-                              ? const BorderRadius.horizontal(
-                                  left: Radius.circular(6))
-                              : i == MyReviewFilter.values.length - 1
-                                  ? const BorderRadius.horizontal(
-                                      right: Radius.circular(6))
-                                  : null,
+                              .changeFilter(filter),
+                          borderRadius: null,
                         ),
                     ],
                   ),
                 ),
               ),
-              // 下载管理按钮
-              IconButton(
-                icon: const Icon(Icons.download),
-                iconSize: 22,
-                padding: const EdgeInsets.all(8),
-                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-                onPressed: _navigateToDownloads,
-                tooltip: '下载管理',
-              ),
-              // 第二列：布局切换按钮
+              // 布局切换按钮
               Padding(
                 padding: EdgeInsets.only(right: horizontalPadding - 8),
                 child: IconButton(
@@ -217,39 +247,42 @@ class _MyScreenState extends ConsumerState<MyScreen>
             ],
           ),
         ),
-      ),
-      body: state.error != null
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('加载失败: ${state.error}',
-                      style: const TextStyle(color: Colors.redAccent)),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: () =>
-                        ref.read(myReviewsProvider.notifier).refresh(),
-                    child: const Text('重试'),
+        // 内容区域
+        Expanded(
+          child: state.error != null
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('加载失败: ${state.error}',
+                          style: const TextStyle(color: Colors.redAccent)),
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: () =>
+                            ref.read(myReviewsProvider.notifier).refresh(),
+                        child: const Text('重试'),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            )
-          : Stack(
-              children: [
-                _buildBody(state),
-                // 全局加载动画 - 在有数据且正在刷新时显示顶部进度条
-                if (state.isLoading && state.works.isNotEmpty)
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: SizedBox(
-                      height: 3,
-                      child: const LinearProgressIndicator(),
-                    ),
-                  ),
-              ],
-            ),
+                )
+              : Stack(
+                  children: [
+                    _buildBody(state),
+                    // 全局加载动画 - 在有数据且正在刷新时显示顶部进度条
+                    if (state.isLoading && state.works.isNotEmpty)
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: SizedBox(
+                          height: 3,
+                          child: const LinearProgressIndicator(),
+                        ),
+                      ),
+                  ],
+                ),
+        ),
+      ],
     );
   }
 

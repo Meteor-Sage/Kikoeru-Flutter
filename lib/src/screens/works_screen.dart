@@ -242,7 +242,7 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
           icon: Icons.grid_view,
           label: '全部',
           isSelected: worksState.displayMode == DisplayMode.all,
-          borderRadius: const BorderRadius.horizontal(left: Radius.circular(6)),
+          borderRadius: null,
           onTap: () {
             notifier.setDisplayMode(DisplayMode.all);
             _scrollToTop();
@@ -253,6 +253,7 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
           icon: Icons.local_fire_department,
           label: '热门',
           isSelected: worksState.displayMode == DisplayMode.popular,
+          borderRadius: null,
           onTap: () {
             notifier.setDisplayMode(DisplayMode.popular);
             _scrollToTop();
@@ -263,8 +264,7 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
           icon: Icons.auto_awesome,
           label: '推荐',
           isSelected: worksState.displayMode == DisplayMode.recommended,
-          borderRadius:
-              const BorderRadius.horizontal(right: Radius.circular(6)),
+          borderRadius: null,
           onTap: () {
             notifier.setDisplayMode(DisplayMode.recommended);
             _scrollToTop();
@@ -285,41 +285,51 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
   }) {
     final theme = Theme.of(context);
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: borderRadius ?? BorderRadius.zero,
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.surfaceContainerHighest,
-            borderRadius: borderRadius ?? BorderRadius.zero,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isSelected
-                    ? theme.colorScheme.onPrimary
-                    : theme.colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 3),
-              Text(
-                label,
-                style: TextStyle(
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? theme.colorScheme.primaryContainer
+                  : theme.colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(20),
+              border: isSelected
+                  ? Border.all(
+                      color: theme.colorScheme.primary,
+                      width: 1.5,
+                    )
+                  : null,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: 18,
                   color: isSelected
-                      ? theme.colorScheme.onPrimary
+                      ? theme.colorScheme.primary
                       : theme.colorScheme.onSurfaceVariant,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
                 ),
-              ),
-            ],
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: isSelected
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurfaceVariant,
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
