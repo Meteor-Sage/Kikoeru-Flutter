@@ -1,19 +1,21 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../providers/update_provider.dart';
 import '../widgets/scrollable_appbar.dart';
 
-class AboutScreen extends StatefulWidget {
+class AboutScreen extends ConsumerStatefulWidget {
   const AboutScreen({super.key});
 
   @override
-  State<AboutScreen> createState() => _AboutScreenState();
+  ConsumerState<AboutScreen> createState() => _AboutScreenState();
 }
 
-class _AboutScreenState extends State<AboutScreen> {
+class _AboutScreenState extends ConsumerState<AboutScreen> {
   static final Uri _repoUri =
       Uri.parse('https://github.com/Meteor-Sage/Kikoeru-Flutter');
   late final Future<_AboutData> _aboutFuture;
@@ -22,6 +24,13 @@ class _AboutScreenState extends State<AboutScreen> {
   void initState() {
     super.initState();
     _aboutFuture = _loadAboutData();
+
+    // Mark update as notified when entering this screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final updateService = ref.read(updateServiceProvider);
+      updateService.markAsNotified();
+      ref.read(showUpdateRedDotProvider.notifier).state = false;
+    });
   }
 
   Future<_AboutData> _loadAboutData() async {
@@ -96,15 +105,61 @@ class _AboutScreenState extends State<AboutScreen> {
               : data.version;
 
           final primaryColor = Theme.of(context).colorScheme.primary;
+          final updateInfo = ref.watch(updateInfoProvider);
+          final isCheckingUpdate = ref.watch(isCheckingUpdateProvider);
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              // Update check card - shown at top if update available
+              if (updateInfo != null && updateInfo.hasNewVersion)
+                Card(
+                  color: Theme.of(context).colorScheme.secondaryContainer,
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.system_update,
+                      color: Theme.of(context).colorScheme.onSecondaryContainer,
+                    ),
+                    title: Text(
+                      '发现新版本',
+                      style: TextStyle(
+                        color:
+                            Theme.of(context).colorScheme.onSecondaryContainer,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '${updateInfo.latestVersion} 可用 (当前版本: ${updateInfo.currentVersion})',
+                      style: TextStyle(
+                        color:
+                            Theme.of(context).colorScheme.onSecondaryContainer,
+                      ),
+                    ),
+                    trailing: Icon(
+                      Icons.open_in_new,
+                      color: Theme.of(context).colorScheme.onSecondaryContainer,
+                    ),
+                    onTap: () => _openUrl(updateInfo.releaseUrl),
+                  ),
+                ),
+              if (updateInfo != null && updateInfo.hasNewVersion)
+                const SizedBox(height: 16),
+
               Card(
                 child: ListTile(
                   leading: Icon(Icons.verified, color: primaryColor),
                   title: const Text('版本信息'),
                   subtitle: Text('当前版本：$versionLabel'),
+                  trailing: isCheckingUpdate
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : TextButton(
+                          onPressed: _manualCheckUpdate,
+                          child: const Text('检查更新'),
+                        ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -143,14 +198,19 @@ class _AboutScreenState extends State<AboutScreen> {
   }
 
   Future<void> _openRepository() async {
+    await _openUrl(_repoUri.toString());
+  }
+
+  Future<void> _openUrl(String urlString) async {
     try {
+      final uri = Uri.parse(urlString);
       final launched = await launchUrl(
-        _repoUri,
+        uri,
         mode: LaunchMode.externalApplication,
       );
       if (!launched && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('无法打开仓库链接')),
+          const SnackBar(content: Text('无法打开链接')),
         );
       }
     } catch (error) {
@@ -158,6 +218,45 @@ class _AboutScreenState extends State<AboutScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('打开链接失败：$error')),
       );
+    }
+  }
+
+  Future<void> _manualCheckUpdate() async {
+    if (ref.read(isCheckingUpdateProvider)) return;
+
+    ref.read(isCheckingUpdateProvider.notifier).state = true;
+
+    try {
+      final updateService = ref.read(updateServiceProvider);
+      final updateInfo = await updateService.checkForUpdates(force: true);
+
+      if (!mounted) return;
+
+      if (updateInfo != null && updateInfo.hasNewVersion) {
+        ref.read(updateInfoProvider.notifier).state = updateInfo;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('发现新版本 ${updateInfo.latestVersion}'),
+            action: SnackBarAction(
+              label: '查看',
+              onPressed: () => _openUrl(updateInfo.releaseUrl),
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('当前已是最新版本')),
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('检查更新失败，请检查网络连接')),
+      );
+    } finally {
+      if (mounted) {
+        ref.read(isCheckingUpdateProvider.notifier).state = false;
+      }
     }
   }
 

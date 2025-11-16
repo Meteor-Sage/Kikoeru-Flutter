@@ -7,6 +7,7 @@ import 'theme_settings_screen.dart';
 import 'player_buttons_settings_screen.dart';
 import 'about_screen.dart';
 import '../providers/settings_provider.dart';
+import '../providers/update_provider.dart';
 import '../services/cache_service.dart';
 import '../widgets/scrollable_appbar.dart';
 
@@ -223,7 +224,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.info_outline),
+            leading: Stack(
+              children: [
+                const Icon(Icons.info_outline),
+                // Red dot indicator for updates
+                Consumer(
+                  builder: (context, ref, _) {
+                    final showRedDot = ref.watch(showUpdateRedDotProvider);
+                    if (!showRedDot) return const SizedBox.shrink();
+
+                    return Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.surface,
+                            width: 1,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
             title: const Text('关于'),
             subtitle: const Text('版本信息、许可证等'),
             trailing: const Icon(Icons.arrow_forward_ios),

@@ -18,6 +18,7 @@ import 'src/services/download_service.dart';
 import 'src/providers/audio_provider.dart';
 import 'src/providers/auth_provider.dart';
 import 'src/providers/theme_provider.dart';
+import 'src/providers/update_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -101,7 +102,28 @@ class _KikoeruAppState extends ConsumerState<KikoeruApp> {
     // Initialize audio and video services
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(audioPlayerControllerProvider.notifier).initialize();
+
+      // Silent update check on startup
+      _checkForUpdates();
     });
+  }
+
+  /// Silently check for updates on startup
+  Future<void> _checkForUpdates() async {
+    try {
+      final updateService = ref.read(updateServiceProvider);
+      final updateInfo = await updateService.checkForUpdates();
+
+      if (updateInfo != null && updateInfo.hasNewVersion) {
+        ref.read(updateInfoProvider.notifier).state = updateInfo;
+
+        // Check if red dot should be shown
+        final shouldShow = await updateService.shouldShowRedDot();
+        ref.read(showUpdateRedDotProvider.notifier).state = shouldShow;
+      }
+    } catch (e) {
+      // Silent failure - no user notification
+    }
   }
 
   @override
