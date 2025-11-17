@@ -111,10 +111,9 @@ class FileIconUtils {
 
     if (type == 'folder') {
       return Icons.folder;
+    } else if (type == 'video' || _isVideoFile(title)) {
+      return Icons.video_library;
     } else if (type == 'audio') {
-      if (_isVideoFile(title)) {
-        return Icons.video_library;
-      }
       return Icons.audiotrack;
     } else if (type == 'image' || _isImageFile(title)) {
       return Icons.image;
@@ -134,10 +133,9 @@ class FileIconUtils {
 
     if (type == 'folder') {
       return Colors.amber;
+    } else if (type == 'video' || _isVideoFile(title)) {
+      return Colors.purple;
     } else if (type == 'audio') {
-      if (_isVideoFile(title)) {
-        return Colors.purple;
-      }
       return Colors.green;
     } else if (type == 'image' || _isImageFile(title)) {
       return Colors.blue;
@@ -235,8 +233,9 @@ class FileIconUtils {
 
   /// 判断是否是视频文件（公开方法 - 用于 file_explorer_widget）
   static bool isVideoFile(Map<String, dynamic> file) {
+    final type = file['type'] ?? '';
     final title = (file['title'] ?? file['name'] ?? '').toLowerCase();
-    return _isVideoFile(title);
+    return type == 'video' || _isVideoFile(title);
   }
 
   /// 判断是否是音频文件（公开方法 - 用于 offline_file_explorer_widget）

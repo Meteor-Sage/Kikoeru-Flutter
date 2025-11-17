@@ -437,6 +437,78 @@ class DownloadService {
     _tasksController.add(List.from(_tasks));
   }
 
+  /// 删除单个文件（用于离线详情页）
+  /// 删除后会清理空文件夹并同步任务列表
+  Future<void> deleteFile(int workId, String relativePath) async {
+    try {
+      final workDir = await _getWorkDownloadDirectory(workId);
+      final file = File('$workDir/$relativePath');
+
+      if (!await file.exists()) {
+        throw Exception('文件不存在');
+      }
+
+      // 删除文件
+      await file.delete();
+      print('[Download] 已删除文件: $relativePath');
+
+      // 清理空文件夹
+      await _cleanEmptyDirectories(file.parent, workDir);
+
+      // 从任务列表中移除对应的任务
+      _tasks.removeWhere((t) =>
+          t.workId == workId &&
+          t.fileName == relativePath &&
+          t.status == DownloadStatus.completed);
+
+      // 检查该作品是否还有其他文件
+      final workDirObj = Directory(workDir);
+      if (await workDirObj.exists()) {
+        final contents = await workDirObj.list().toList();
+        // 只剩下 metadata 和 cover 文件时，删除整个作品文件夹
+        final hasOtherFiles = contents.any((entity) {
+          final name = entity.path.split(Platform.pathSeparator).last;
+          return name != 'work_metadata.json' && name != 'cover.jpg';
+        });
+
+        if (!hasOtherFiles) {
+          await workDirObj.delete(recursive: true);
+          print('[Download] 作品文件夹已空，已删除: $workDir');
+          // 删除所有相关任务
+          _tasks.removeWhere((t) => t.workId == workId);
+        }
+      }
+
+      await _saveTasks();
+      _tasksController.add(List.from(_tasks));
+    } catch (e) {
+      print('[Download] 删除文件失败: $e');
+      rethrow;
+    }
+  }
+
+  /// 递归清理空文件夹
+  Future<void> _cleanEmptyDirectories(Directory dir, String workDir) async {
+    try {
+      // 不要删除作品根目录
+      if (dir.path == workDir) {
+        return;
+      }
+
+      // 检查目录是否为空
+      final contents = await dir.list().toList();
+      if (contents.isEmpty) {
+        print('[Download] 清理空文件夹: ${dir.path}');
+        await dir.delete();
+
+        // 递归检查父目录
+        await _cleanEmptyDirectories(dir.parent, workDir);
+      }
+    } catch (e) {
+      print('[Download] 清理空文件夹失败: $e');
+    }
+  }
+
   Future<List<DownloadTask>> getWorkTasks(int workId) async {
     return _tasks.where((t) => t.workId == workId).toList();
   }

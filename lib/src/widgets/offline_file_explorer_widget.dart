@@ -5,6 +5,7 @@ import 'package:open_filex/open_filex.dart';
 
 import '../models/work.dart';
 import '../services/download_path_service.dart';
+import '../services/download_service.dart';
 import '../models/audio_track.dart';
 import '../providers/audio_provider.dart';
 import '../providers/lyric_provider.dart';
@@ -996,51 +997,62 @@ class _OfflineFileExplorerWidgetState
                   ),
                 ),
                 // 操作按钮
-                if (type == 'audio')
-                  IconButton(
-                    onPressed: () {
-                      if (FileIconUtils.isVideoFile(item)) {
-                        _playVideoWithSystemPlayer(item);
-                      } else {
-                        _playAudioFile(item, parentPath);
-                      }
-                    },
-                    icon: Icon(FileIconUtils.isVideoFile(item)
-                        ? Icons.video_library
-                        : Icons.play_arrow),
-                    color: FileIconUtils.isVideoFile(item)
-                        ? Colors.blue
-                        : Colors.green,
-                    iconSize: 20,
-                  )
-                else if (FileIconUtils.isImageFile(item) ||
-                    FileIconUtils.isTextFile(item) ||
-                    FileIconUtils.isPdfFile(item))
+                if (!isFolder)
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (FileIconUtils.isTextFile(item) &&
-                          FileIconUtils.isLyricFile(title))
+                      // 播放/预览按钮
+                      if (type == 'audio')
                         IconButton(
-                          onPressed: () => _loadLyricManually(item),
-                          icon: const Icon(Icons.subtitles),
-                          color: Colors.orange,
-                          tooltip: '加载为字幕',
+                          onPressed: () {
+                            if (FileIconUtils.isVideoFile(item)) {
+                              _playVideoWithSystemPlayer(item);
+                            } else {
+                              _playAudioFile(item, parentPath);
+                            }
+                          },
+                          icon: Icon(FileIconUtils.isVideoFile(item)
+                              ? Icons.video_library
+                              : Icons.play_arrow),
+                          color: FileIconUtils.isVideoFile(item)
+                              ? Colors.blue
+                              : Colors.green,
+                          iconSize: 20,
+                        )
+                      else if (FileIconUtils.isImageFile(item) ||
+                          FileIconUtils.isTextFile(item) ||
+                          FileIconUtils.isPdfFile(item)) ...[
+                        if (FileIconUtils.isTextFile(item) &&
+                            FileIconUtils.isLyricFile(title))
+                          IconButton(
+                            onPressed: () => _loadLyricManually(item),
+                            icon: const Icon(Icons.subtitles),
+                            color: Colors.orange,
+                            tooltip: '加载为字幕',
+                            iconSize: 20,
+                          ),
+                        IconButton(
+                          onPressed: () {
+                            if (FileIconUtils.isImageFile(item)) {
+                              _previewImageFile(item);
+                            } else if (FileIconUtils.isPdfFile(item)) {
+                              _previewPdfFile(item);
+                            } else {
+                              _previewTextFile(item);
+                            }
+                          },
+                          icon: const Icon(Icons.visibility),
+                          color: Colors.blue,
+                          tooltip: '预览',
                           iconSize: 20,
                         ),
+                      ],
+                      // 删除按钮（所有文件类型）
                       IconButton(
-                        onPressed: () {
-                          if (FileIconUtils.isImageFile(item)) {
-                            _previewImageFile(item);
-                          } else if (FileIconUtils.isPdfFile(item)) {
-                            _previewPdfFile(item);
-                          } else {
-                            _previewTextFile(item);
-                          }
-                        },
-                        icon: const Icon(Icons.visibility),
-                        color: Colors.blue,
-                        tooltip: '预览',
+                        onPressed: () => _deleteFile(item, parentPath),
+                        icon: const Icon(Icons.delete_outline),
+                        color: Colors.red.shade400,
+                        tooltip: '删除',
                         iconSize: 20,
                       ),
                     ],
@@ -1082,6 +1094,97 @@ class _OfflineFileExplorerWidgetState
       _previewTextFile(file);
     } else {
       _showSnackBar('暂不支持打开此类型文件: $title');
+    }
+  }
+
+  // 删除单个文件
+  Future<void> _deleteFile(dynamic file, String parentPath) async {
+    final title = _getProperty(file, 'title', defaultValue: '未知文件');
+    final relativePath = parentPath.isEmpty ? title : '$parentPath/$title';
+
+    // 显示确认对话框
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => ResponsiveAlertDialog(
+        title: const Text('确认删除'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('确定要删除这个文件吗？'),
+            const SizedBox(height: 12),
+            Text(
+              relativePath,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '此操作不可恢复！',
+              style: TextStyle(
+                color: Colors.red,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      // 显示加载指示器
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+      }
+
+      // 删除文件
+      await DownloadService.instance.deleteFile(widget.work.id, relativePath);
+
+      // 关闭加载指示器
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // 重新加载文件列表
+      await _loadLocalFiles();
+
+      // 显示成功消息
+      if (mounted) {
+        _showSnackBar('已删除: $title');
+      }
+    } catch (e) {
+      // 关闭加载指示器
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // 显示错误消息
+      if (mounted) {
+        _showSnackBar('删除失败: $e', isError: true);
+      }
     }
   }
 }

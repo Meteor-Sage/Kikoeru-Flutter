@@ -1239,16 +1239,6 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
             const SizedBox(height: 16),
           ],
 
-          // 播放按钮 - 替换为文件浏览器
-          Text(
-            '资源文件',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-          ),
-          const SizedBox(height: 8),
-
           // 文件浏览器组件 - 移除固定高度，让它自由展开
           FileExplorerWidget(work: work),
         ],

@@ -13,6 +13,7 @@ import '../providers/audio_provider.dart';
 import '../providers/lyric_provider.dart';
 import '../services/download_service.dart';
 import '../services/cache_service.dart';
+import '../services/translation_service.dart';
 import '../utils/file_icon_utils.dart';
 import 'responsive_dialog.dart';
 import 'image_gallery_screen.dart';
@@ -41,6 +42,12 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
   String? _mainFolderPath; // 主文件夹路径
   ScaffoldMessengerState? _scaffoldMessenger;
   StreamSubscription<List<DownloadTask>>? _downloadTasksSubscription;
+
+  // 翻译相关状态
+  bool _isTranslating = false;
+  bool _showTranslation = false;
+  String _translationProgress = '';
+  final Map<String, String> _translationCache = {}; // 原文 -> 译文
 
   @override
   void initState() {
@@ -1183,7 +1190,129 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: _buildFileTree(_rootFiles, ''),
+        children: [
+          // 翻译按钮栏
+          Container(
+            padding: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Theme.of(context).dividerColor,
+                  width: 1,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _showTranslation
+                        ? '资源文件 (已翻译 ${_translationCache.length} 项)'
+                        : '资源文件',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                  ),
+                ),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _isTranslating ? null : _translateAllNames,
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: _showTranslation
+                              ? Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withOpacity(0.3)
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _isTranslating
+                              ? SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.g_translate,
+                                  size: 16,
+                                  color: _showTranslation
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withOpacity(0.7),
+                                ),
+                          if (!_isTranslating) ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              _showTranslation ? '原' : '译',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: _showTranslation
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withOpacity(0.7),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // 翻译进度显示
+          if (_isTranslating)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _translationProgress,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          // 文件树列表
+          ..._buildFileTree(_rootFiles, ''),
+        ],
       ),
     );
   }
@@ -1195,7 +1324,8 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
 
     for (final item in items) {
       final type = item['type'] ?? '';
-      final title = item['title'] ?? item['name'] ?? '未知文件';
+      final originalTitle = item['title'] ?? item['name'] ?? '未知文件';
+      final title = _getDisplayName(originalTitle); // 使用翻译后的名称
       final isFolder = type == 'folder';
       final children = item['children'] as List<dynamic>?;
       final itemPath = _getItemPath(parentPath, item);
@@ -1372,6 +1502,157 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
     }
 
     return widgets;
+  }
+
+  // 收集所有文件和文件夹的名称
+  List<String> _collectAllNames(List<dynamic> items) {
+    final List<String> names = [];
+
+    void collect(List<dynamic> items) {
+      for (final item in items) {
+        final title = item['title'] ?? item['name'] ?? '';
+        if (title.isNotEmpty && !names.contains(title)) {
+          names.add(title);
+        }
+
+        // 递归处理子文件夹
+        if (item['type'] == 'folder' && item['children'] != null) {
+          collect(item['children'] as List<dynamic>);
+        }
+      }
+    }
+
+    collect(items);
+    return names;
+  }
+
+  // 分块批量翻译所有文件/文件夹名称
+  Future<void> _translateAllNames() async {
+    if (_isTranslating) return;
+
+    // 如果已有翻译，直接切换显示
+    if (_translationCache.isNotEmpty) {
+      setState(() {
+        _showTranslation = !_showTranslation;
+      });
+      return;
+    }
+
+    setState(() {
+      _isTranslating = true;
+      _translationProgress = '准备翻译...';
+    });
+
+    try {
+      // 1. 收集所有需要翻译的名称
+      final allNames = _collectAllNames(_rootFiles);
+
+      if (allNames.isEmpty) {
+        setState(() {
+          _isTranslating = false;
+        });
+        _showSnackBar(
+          const SnackBar(
+            content: Text('没有需要翻译的内容'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      // 2. 分块翻译（每块最多500字符，避免URL长度限制）
+      const maxChunkSize = 500;
+      final List<String> chunks = [];
+      String currentChunk = '';
+
+      for (final name in allNames) {
+        final separator = currentChunk.isEmpty ? '' : '\n';
+        final estimatedLength =
+            currentChunk.length + separator.length + name.length;
+
+        if (estimatedLength > maxChunkSize && currentChunk.isNotEmpty) {
+          chunks.add(currentChunk);
+          currentChunk = name;
+        } else {
+          currentChunk += separator + name;
+        }
+      }
+
+      if (currentChunk.isNotEmpty) {
+        chunks.add(currentChunk);
+      }
+
+      // 3. 逐块翻译
+      final translationService = TranslationService();
+      final List<String> translatedChunks = [];
+
+      for (int i = 0; i < chunks.length; i++) {
+        setState(() {
+          _translationProgress = '翻译中 ${i + 1}/${chunks.length}';
+        });
+
+        try {
+          final translated = await translationService.translate(
+            chunks[i],
+            sourceLang: 'ja',
+          );
+          translatedChunks.add(translated);
+        } catch (e) {
+          print('[FileExplorer] 翻译块 $i 失败: $e');
+          // 翻译失败时保留原文
+          translatedChunks.add(chunks[i]);
+        }
+
+        // 添加小延迟避免频繁请求
+        if (i < chunks.length - 1) {
+          await Future.delayed(const Duration(milliseconds: 300));
+        }
+      }
+
+      // 4. 构建翻译缓存（原文 -> 译文映射）
+      final allTranslatedNames = translatedChunks.join('\n').split('\n');
+
+      for (int i = 0;
+          i < allNames.length && i < allTranslatedNames.length;
+          i++) {
+        _translationCache[allNames[i]] = allTranslatedNames[i];
+      }
+
+      setState(() {
+        _showTranslation = true;
+        _isTranslating = false;
+        _translationProgress = '';
+      });
+
+      _showSnackBar(
+        SnackBar(
+          content: Text('翻译完成：${_translationCache.length} 个项目'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      setState(() {
+        _isTranslating = false;
+        _translationProgress = '';
+      });
+
+      _showSnackBar(
+        SnackBar(
+          content: Text('翻译失败: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  // 获取显示的名称（根据翻译状态）
+  String _getDisplayName(String originalName) {
+    if (_showTranslation && _translationCache.containsKey(originalName)) {
+      return _translationCache[originalName]!;
+    }
+    return originalName;
   }
 
   // 处理文件点击
