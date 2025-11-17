@@ -333,7 +333,7 @@ class DownloadPathService {
     if (Platform.isAndroid) {
       return 'Android: 将使用系统文件选择器，可能需要存储权限';
     } else if (Platform.isIOS) {
-      return 'iOS: 受系统沙盒限制，建议使用默认路径';
+      return 'iOS: 受系统限制，使用默认路径，可使用系统默认文件浏览器查看';
     } else if (Platform.isWindows) {
       return 'Windows: 可选择任意可访问的目录';
     } else if (Platform.isMacOS) {
