@@ -234,121 +234,6 @@ class _OfflineWorkDetailScreenState
               softWrap: true,
             ),
           ),
-          const SizedBox(height: 8),
-
-          // 离线提示
-          if (widget.isOffline)
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-              margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline,
-                      size: 16, color: Colors.orange),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '离线模式：显示下载时保存的作品信息',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.orange[800],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-          // 评分和销售信息
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              // 评分信息
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .secondaryContainer
-                      .withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 20),
-                    const SizedBox(width: 4),
-                    Text(
-                      (work.rateAverage != null &&
-                              work.rateCount != null &&
-                              work.rateCount! > 0)
-                          ? work.rateAverage!.toStringAsFixed(1)
-                          : '-',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '(${work.rateCount ?? 0})',
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // 价格信息
-              if (work.price != null)
-                Text(
-                  '${work.price} 日元',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.red[700],
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                ),
-
-              // 时长信息
-              if (work.duration != null && work.duration! > 0)
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.access_time, color: Colors.blue, size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      _formatDuration(work.duration!),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.blue[700],
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                    ),
-                  ],
-                ),
-
-              // 销售数量
-              if (work.dlCount != null && work.dlCount! > 0)
-                Text(
-                  '售出：${_formatNumber(work.dlCount!)}',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      ),
-                ),
-            ],
-          ),
-
           const SizedBox(height: 16),
 
           // 社团和声优信息
@@ -438,26 +323,6 @@ class _OfflineWorkDetailScreenState
             const SizedBox(height: 16),
           ],
 
-          // 作品描述
-          if (work.description != null && work.description!.isNotEmpty) ...[
-            Text(
-              '作品简介',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              work.description!,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontSize: 14,
-                    height: 1.5,
-                  ),
-            ),
-            const SizedBox(height: 16),
-          ],
-
           // 文件浏览器
           Text(
             '已下载文件',
@@ -527,26 +392,6 @@ class _OfflineWorkDetailScreenState
           ],
         ),
       );
-    }
-  }
-
-  String _formatNumber(int number) {
-    if (number >= 10000) {
-      return '${(number / 10000).toStringAsFixed(1)}万';
-    } else if (number >= 1000) {
-      return '${(number / 1000).toStringAsFixed(1)}k';
-    } else {
-      return number.toString();
-    }
-  }
-
-  String _formatDuration(int minutes) {
-    if (minutes < 60) {
-      return '$minutes分钟';
-    } else {
-      final hours = minutes ~/ 60;
-      final mins = minutes % 60;
-      return mins > 0 ? '${hours}小时${mins}分钟' : '${hours}小时';
     }
   }
 }

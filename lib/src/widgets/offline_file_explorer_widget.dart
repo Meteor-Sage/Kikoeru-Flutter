@@ -6,6 +6,7 @@ import 'package:open_filex/open_filex.dart';
 import '../models/work.dart';
 import '../services/download_path_service.dart';
 import '../services/download_service.dart';
+import '../services/translation_service.dart';
 import '../models/audio_track.dart';
 import '../providers/audio_provider.dart';
 import '../providers/lyric_provider.dart';
@@ -41,6 +42,11 @@ class _OfflineFileExplorerWidgetState
   String? _errorMessage;
   String? _mainFolderPath; // 主文件夹路径
   late final FileListController _fileListController;
+
+  // 翻译相关状态
+  bool _showTranslation = false;
+  final Map<String, String> _translationCache = {}; // 原文 -> 译文
+  final Set<String> _translatingItems = {}; // 正在翻译的项目
 
   @override
   void initState() {
@@ -915,7 +921,94 @@ class _OfflineFileExplorerWidgetState
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: _buildFileTree(_localFiles, ''),
+        children: [
+          // 标题栏
+          Container(
+            padding: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Theme.of(context).dividerColor,
+                  width: 1,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '离线文件',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                  ),
+                ),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _showTranslation = !_showTranslation;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: _showTranslation
+                              ? Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withOpacity(0.3)
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .onSurface
+                                  .withOpacity(0.2),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.g_translate,
+                            size: 16,
+                            color: _showTranslation
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withOpacity(0.7),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _showTranslation ? '原' : '译',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: _showTranslation
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .onSurface
+                                      .withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // 文件树列表
+          ..._buildFileTree(_localFiles, ''),
+        ],
       ),
     );
   }
@@ -927,11 +1020,20 @@ class _OfflineFileExplorerWidgetState
 
     for (final item in items) {
       final type = _getProperty(item, 'type', defaultValue: '');
-      final title = _getProperty(item, 'title', defaultValue: '未知文件');
+      final originalTitle = _getProperty(item, 'title', defaultValue: '未知文件');
+      final title = _getDisplayName(originalTitle); // 使用翻译后的名称
       final isFolder = type == 'folder';
       final children = _getProperty(item, 'children') as List<dynamic>?;
       final itemPath = _getItemPath(parentPath, item);
       final isExpanded = _expandedFolders.contains(itemPath);
+      final isTranslating = _translatingItems.contains(originalTitle);
+
+      // 如果启用翻译且该项未翻译，自动翻译
+      if (_showTranslation &&
+          !_translationCache.containsKey(originalTitle) &&
+          !isTranslating) {
+        _translateItem(originalTitle);
+      }
 
       // 文件/文件夹项
       widgets.add(
@@ -997,57 +1099,54 @@ class _OfflineFileExplorerWidgetState
                   ),
                 ),
                 // 操作按钮
-                if (!isFolder)
+                if (type == 'audio')
+                  IconButton(
+                    onPressed: () {
+                      if (FileIconUtils.isVideoFile(item)) {
+                        _playVideoWithSystemPlayer(item);
+                      } else {
+                        _playAudioFile(item, parentPath);
+                      }
+                    },
+                    icon: Icon(FileIconUtils.isVideoFile(item)
+                        ? Icons.video_library
+                        : Icons.play_arrow),
+                    color: FileIconUtils.isVideoFile(item)
+                        ? Colors.blue
+                        : Colors.green,
+                    iconSize: 20,
+                  )
+                else if (FileIconUtils.isImageFile(item) ||
+                    FileIconUtils.isTextFile(item) ||
+                    FileIconUtils.isPdfFile(item))
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // 播放/预览按钮
-                      if (type == 'audio')
+                      if (FileIconUtils.isTextFile(item) &&
+                          FileIconUtils.isLyricFile(originalTitle))
                         IconButton(
-                          onPressed: () {
-                            if (FileIconUtils.isVideoFile(item)) {
-                              _playVideoWithSystemPlayer(item);
-                            } else {
-                              _playAudioFile(item, parentPath);
-                            }
-                          },
-                          icon: Icon(FileIconUtils.isVideoFile(item)
-                              ? Icons.video_library
-                              : Icons.play_arrow),
-                          color: FileIconUtils.isVideoFile(item)
-                              ? Colors.blue
-                              : Colors.green,
-                          iconSize: 20,
-                        )
-                      else if (FileIconUtils.isImageFile(item) ||
-                          FileIconUtils.isTextFile(item) ||
-                          FileIconUtils.isPdfFile(item)) ...[
-                        if (FileIconUtils.isTextFile(item) &&
-                            FileIconUtils.isLyricFile(title))
-                          IconButton(
-                            onPressed: () => _loadLyricManually(item),
-                            icon: const Icon(Icons.subtitles),
-                            color: Colors.orange,
-                            tooltip: '加载为字幕',
-                            iconSize: 20,
-                          ),
-                        IconButton(
-                          onPressed: () {
-                            if (FileIconUtils.isImageFile(item)) {
-                              _previewImageFile(item);
-                            } else if (FileIconUtils.isPdfFile(item)) {
-                              _previewPdfFile(item);
-                            } else {
-                              _previewTextFile(item);
-                            }
-                          },
-                          icon: const Icon(Icons.visibility),
-                          color: Colors.blue,
-                          tooltip: '预览',
+                          onPressed: () => _loadLyricManually(item),
+                          icon: const Icon(Icons.subtitles),
+                          color: Colors.orange,
+                          tooltip: '加载为字幕',
                           iconSize: 20,
                         ),
-                      ],
-                      // 删除按钮（所有文件类型）
+                      IconButton(
+                        onPressed: () {
+                          if (FileIconUtils.isImageFile(item)) {
+                            _previewImageFile(item);
+                          } else if (FileIconUtils.isPdfFile(item)) {
+                            _previewPdfFile(item);
+                          } else {
+                            _previewTextFile(item);
+                          }
+                        },
+                        icon: const Icon(Icons.visibility),
+                        color: Colors.blue,
+                        tooltip: '预览',
+                        iconSize: 20,
+                      ),
+                      // 删除按钮
                       IconButton(
                         onPressed: () => _deleteFile(item, parentPath),
                         icon: const Icon(Icons.delete_outline),
@@ -1056,6 +1155,14 @@ class _OfflineFileExplorerWidgetState
                         iconSize: 20,
                       ),
                     ],
+                  )
+                else if (!isFolder)
+                  IconButton(
+                    onPressed: () => _deleteFile(item, parentPath),
+                    icon: const Icon(Icons.delete_outline),
+                    color: Colors.red.shade400,
+                    tooltip: '删除',
+                    iconSize: 20,
                   )
                 else if (isFolder && children != null)
                   Text(
@@ -1080,6 +1187,44 @@ class _OfflineFileExplorerWidgetState
     return widgets;
   }
 
+  // 获取显示的名称（根据翻译状态）
+  String _getDisplayName(String originalName) {
+    if (_showTranslation && _translationCache.containsKey(originalName)) {
+      return _translationCache[originalName]!;
+    }
+    return originalName;
+  }
+
+  // 按需翻译单个项目
+  Future<void> _translateItem(String originalName) async {
+    if (_translationCache.containsKey(originalName) ||
+        _translatingItems.contains(originalName)) {
+      return;
+    }
+
+    setState(() {
+      _translatingItems.add(originalName);
+    });
+
+    try {
+      final translationService = TranslationService();
+      final translated = await translationService.translate(
+        originalName,
+        sourceLang: 'ja',
+      );
+
+      setState(() {
+        _translationCache[originalName] = translated;
+        _translatingItems.remove(originalName);
+      });
+    } catch (e) {
+      print('[OfflineFileExplorer] 翻译失败: $e');
+      setState(() {
+        _translatingItems.remove(originalName);
+      });
+    }
+  }
+
   // 处理文件点击
   void _handleFileTap(dynamic file, String title, String parentPath) {
     if (FileIconUtils.isAudioFile(file)) {
@@ -1088,6 +1233,8 @@ class _OfflineFileExplorerWidgetState
       _playVideoWithSystemPlayer(file);
     } else if (FileIconUtils.isImageFile(file)) {
       _previewImageFile(file);
+    } else if (FileIconUtils.isPdfFile(file)) {
+      _previewTextFile(file);
     } else if (FileIconUtils.isPdfFile(file)) {
       _previewPdfFile(file);
     } else if (FileIconUtils.isTextFile(file)) {
