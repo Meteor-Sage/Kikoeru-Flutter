@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/download_path_service.dart';
 import '../services/download_service.dart';
+import '../providers/settings_provider.dart';
 import '../widgets/scrollable_appbar.dart';
 
 class DownloadPathSettingsScreen extends ConsumerStatefulWidget {
@@ -91,6 +92,9 @@ class _DownloadPathSettingsScreenState
 
         // 触发 DownloadService 重新加载
         await DownloadService.instance.reloadMetadataFromDisk();
+
+        // 触发字幕库刷新（路径已更改）
+        ref.read(subtitleLibraryRefreshTriggerProvider.notifier).state++;
 
         // 延迟显示成功消息
         if (mounted) {

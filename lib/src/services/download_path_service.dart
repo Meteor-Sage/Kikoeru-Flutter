@@ -209,8 +209,8 @@ class DownloadPathService {
           final folderName = entity.path.split(Platform.pathSeparator).last;
           final workId = int.tryParse(folderName);
 
-          // 只迁移以数字命名的文件夹（这些是下载的作品文件夹）
-          if (workId != null) {
+          // 迁移以数字命名的文件夹（作品文件夹）或字幕库文件夹
+          if (workId != null || folderName == 'subtitle_library') {
             try {
               final newWorkDir = Directory('${newDir.path}/$folderName');
               await newWorkDir.create(recursive: true);
@@ -240,25 +240,29 @@ class DownloadPathService {
 
               fileCount += folderFileCount;
               workFolderCount++;
-              print(
-                  '[DownloadPath] 已迁移作品文件夹 $folderName: $folderFileCount 个文件');
+              if (folderName == 'subtitle_library') {
+                print('[DownloadPath] 已迁移字幕库: $folderFileCount 个文件');
+              } else {
+                print(
+                    '[DownloadPath] 已迁移作品文件夹 $folderName: $folderFileCount 个文件');
+              }
 
               // 迁移成功后删除原文件夹
               try {
                 await entity.delete(recursive: true);
               } catch (e) {
-                print('[DownloadPath] 删除原作品文件夹失败: $folderName, 错误: $e');
+                print('[DownloadPath] 删除原文件夹失败: $folderName, 错误: $e');
                 errorCount++;
               }
             } catch (e) {
-              print('[DownloadPath] 迁移作品文件夹失败: $folderName, 错误: $e');
+              print('[DownloadPath] 迁移文件夹失败: $folderName, 错误: $e');
               errorCount++;
             }
           } else {
-            // 跳过非数字命名的文件夹（可能是用户的其他文件）
+            // 跳过非数字命名且不是字幕库的文件夹（可能是用户的其他文件）
             skippedCount++;
             skippedItems.add(folderName);
-            print('[DownloadPath] 跳过非下载文件夹: $folderName');
+            print('[DownloadPath] 跳过文件夹: $folderName');
           }
         } else if (entity is File) {
           // 跳过下载目录根目录下的文件（可能是用户的其他文件）

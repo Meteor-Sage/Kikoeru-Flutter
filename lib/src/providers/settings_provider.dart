@@ -4,6 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Triggers when Settings screen should refresh cache-related information.
 final settingsCacheRefreshTriggerProvider = StateProvider<int>((ref) => 0);
 
+/// Triggers when Subtitle Library screen should refresh (e.g., after path change).
+final subtitleLibraryRefreshTriggerProvider = StateProvider<int>((ref) => 0);
+
 /// 音频格式类型
 enum AudioFormat {
   mp3('MP3', 'mp3'),

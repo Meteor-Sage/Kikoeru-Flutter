@@ -9,6 +9,7 @@ import '../services/download_service.dart';
 import '../models/download_task.dart';
 import 'downloads_screen.dart';
 import 'local_downloads_screen.dart';
+import 'subtitle_library_screen.dart';
 export '../providers/my_reviews_provider.dart' show MyReviewLayoutType;
 
 class MyScreen extends ConsumerStatefulWidget {
@@ -29,7 +30,7 @@ class _MyScreenState extends ConsumerState<MyScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     // 只在首次加载时获取数据，如果已有数据则不重新加载
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final myState = ref.read(myReviewsProvider);
@@ -188,21 +189,31 @@ class _MyScreenState extends ConsumerState<MyScreen>
           tabs: const [
             Tab(text: '在线标记'),
             Tab(text: '本地下载'),
+            Tab(text: '字幕库'),
           ],
         ),
       ),
-      floatingActionButton: StreamBuilder<List<DownloadTask>>(
-        stream: DownloadService.instance.tasksStream,
-        builder: (context, snapshot) {
-          final activeCount = DownloadService.instance.activeDownloadCount;
-          return Badge(
-            isLabelVisible: activeCount > 0,
-            label: Text('$activeCount'),
-            child: FloatingActionButton(
-              onPressed: _navigateToDownloads,
-              tooltip: '下载任务',
-              child: const Icon(Icons.download),
-            ),
+      floatingActionButton: AnimatedBuilder(
+        animation: _tabController,
+        builder: (context, child) {
+          // 在字幕库标签页（索引2）时不显示下载按钮
+          if (_tabController.index == 2) {
+            return const SizedBox.shrink();
+          }
+          return StreamBuilder<List<DownloadTask>>(
+            stream: DownloadService.instance.tasksStream,
+            builder: (context, snapshot) {
+              final activeCount = DownloadService.instance.activeDownloadCount;
+              return Badge(
+                isLabelVisible: activeCount > 0,
+                label: Text('$activeCount'),
+                child: FloatingActionButton(
+                  onPressed: _navigateToDownloads,
+                  tooltip: '下载任务',
+                  child: const Icon(Icons.download),
+                ),
+              );
+            },
           );
         },
       ),
@@ -211,6 +222,7 @@ class _MyScreenState extends ConsumerState<MyScreen>
         children: [
           _buildOnlineBookmarksTab(),
           const LocalDownloadsScreen(),
+          const SubtitleLibraryScreen(),
         ],
       ),
     );
