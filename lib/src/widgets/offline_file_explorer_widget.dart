@@ -51,7 +51,8 @@ class _OfflineFileExplorerWidgetState
   @override
   void dispose() {
     // 离线页面关闭时清空文件列表，避免影响其他作品
-    _fileListController.clear();
+    // 使用 Future.microtask 延迟执行，避免在 dispose 中直接修改 provider
+    Future.microtask(() => _fileListController.clear());
     super.dispose();
   }
 
