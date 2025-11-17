@@ -324,32 +324,17 @@ class _OfflineWorkDetailScreenState
           ],
 
           // 文件浏览器
-          Text(
-            '已下载文件',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            constraints: const BoxConstraints(minHeight: 200, maxHeight: 400),
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.withOpacity(0.3)),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: OfflineFileExplorerWidget(
-              work: work,
-              fileTree: work.children != null
-                  ? work.children!.map((e) {
-                      if (e is Map<String, dynamic>) {
-                        return e;
-                      }
-                      // 如果是 AudioFile 对象，转换为 Map
-                      return e.toJson();
-                    }).toList()
-                  : null,
-            ),
+          OfflineFileExplorerWidget(
+            work: work,
+            fileTree: work.children != null
+                ? work.children!.map((e) {
+                    if (e is Map<String, dynamic>) {
+                      return e;
+                    }
+                    // 如果是 AudioFile 对象，转换为 Map
+                    return e.toJson();
+                  }).toList()
+                : null,
           ),
         ],
       ),

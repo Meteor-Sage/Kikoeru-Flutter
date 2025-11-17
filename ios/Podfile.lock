@@ -46,6 +46,8 @@ PODS:
   - just_audio (0.0.1):
     - Flutter
     - FlutterMacOS
+  - open_filex (0.0.2):
+    - Flutter
   - package_info_plus (0.4.5):
     - Flutter
   - path_provider_foundation (0.0.1):
@@ -77,6 +79,7 @@ DEPENDENCIES:
   - Flutter (from `Flutter`)
   - flutter_pdfview (from `.symlinks/plugins/flutter_pdfview/ios`)
   - just_audio (from `.symlinks/plugins/just_audio/darwin`)
+  - open_filex (from `.symlinks/plugins/open_filex/ios`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
@@ -108,6 +111,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_pdfview/ios"
   just_audio:
     :path: ".symlinks/plugins/just_audio/darwin"
+  open_filex:
+    :path: ".symlinks/plugins/open_filex/ios"
   package_info_plus:
     :path: ".symlinks/plugins/package_info_plus/ios"
   path_provider_foundation:
@@ -133,6 +138,7 @@ SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_pdfview: 32bf27bda6fd85b9dd2c09628a824df5081246cf
   just_audio: 4e391f57b79cad2b0674030a00453ca5ce817eed
+  open_filex: 432f3cd11432da3e39f47fcc0df2b1603854eff1
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
   path_provider_foundation: bb55f6dbba17d0dccd6737fe6f7f34fbd0376880
   permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
