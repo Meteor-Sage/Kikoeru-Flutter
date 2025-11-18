@@ -17,20 +17,16 @@ class PlayerButtonsSettingsScreen extends ConsumerStatefulWidget {
 class _PlayerButtonsSettingsScreenState
     extends ConsumerState<PlayerButtonsSettingsScreen> {
   final bool _isDesktop = !Platform.isAndroid && !Platform.isIOS;
-  late List<PlayerButtonType> _buttonOrder;
+  List<PlayerButtonType> _buttonOrder = [];
 
   @override
   void initState() {
     super.initState();
-    // 延迟初始化以确保provider已经加载
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final config = _isDesktop
-          ? ref.read(playerButtonsConfigDesktopProvider)
-          : ref.read(playerButtonsConfigMobileProvider);
-      setState(() {
-        _buttonOrder = List.from(config.buttonOrder);
-      });
-    });
+    // 从provider初始化
+    final config = _isDesktop
+        ? ref.read(playerButtonsConfigDesktopProvider)
+        : ref.read(playerButtonsConfigMobileProvider);
+    _buttonOrder = List.from(config.buttonOrder);
   }
 
   IconData _getButtonIcon(PlayerButtonType type) {
@@ -51,6 +47,8 @@ class _PlayerButtonsSettingsScreenState
         return Icons.speed;
       case PlayerButtonType.repeat:
         return Icons.repeat;
+      case PlayerButtonType.subtitleAdjustment:
+        return Icons.tune;
     }
   }
 

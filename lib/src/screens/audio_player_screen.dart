@@ -11,7 +11,6 @@ import '../widgets/player/player_cover_widget.dart';
 import '../widgets/player/player_controls_widget.dart';
 import '../widgets/player/lyric_display_widget.dart';
 import '../widgets/player/playlist_dialog.dart';
-import '../widgets/subtitle_adjustment_dialog.dart';
 import '../widgets/work_bookmark_manager.dart';
 import 'work_detail_screen.dart';
 
@@ -197,32 +196,6 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
         ),
       ),
       actions: [
-        // 字幕轴调整按钮
-        Consumer(
-          builder: (context, ref, child) {
-            final lyricState = ref.watch(lyricControllerProvider);
-            if (lyricState.lyrics.isEmpty) return const SizedBox.shrink();
-
-            return Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: IconButton(
-                icon: Badge(
-                  isLabelVisible: lyricState.timelineOffset != Duration.zero,
-                  label: const Icon(Icons.check, size: 10),
-                  child: const Icon(Icons.tune),
-                ),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    barrierColor: Colors.transparent,
-                    builder: (context) => const SubtitleAdjustmentDialog(),
-                  );
-                },
-                tooltip: '字幕轴调整',
-              ),
-            );
-          },
-        ),
         Padding(
           padding: const EdgeInsets.only(right: 8.0),
           child: IconButton(

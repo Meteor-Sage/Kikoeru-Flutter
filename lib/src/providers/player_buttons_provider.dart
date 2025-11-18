@@ -10,7 +10,8 @@ enum PlayerButtonType {
   volume('音量控制', 'volume'),
   speed('播放速度', 'speed'),
   repeat('循环模式', 'repeat'),
-  detail('查看详情', 'detail');
+  detail('查看详情', 'detail'),
+  subtitleAdjustment('字幕轴调整', 'subtitle_adjustment');
 
   final String label;
   final String key;
@@ -34,6 +35,7 @@ class PlayerButtonsConfig {
       PlayerButtonType.mark,
       PlayerButtonType.speed,
       PlayerButtonType.repeat,
+      PlayerButtonType.subtitleAdjustment,
       PlayerButtonType.detail,
     ],
   );
@@ -48,6 +50,7 @@ class PlayerButtonsConfig {
       PlayerButtonType.volume,
       PlayerButtonType.speed,
       PlayerButtonType.repeat,
+      PlayerButtonType.subtitleAdjustment,
       PlayerButtonType.detail,
     ],
   );
@@ -113,14 +116,32 @@ class PlayerButtonsConfigController extends StateNotifier<PlayerButtonsConfig> {
       final jsonString = prefs.getString(key);
 
       if (jsonString != null) {
-        state = PlayerButtonsConfig(
-          buttonOrder: (jsonString.split(','))
-              .map((key) => PlayerButtonType.values.firstWhere(
-                    (type) => type.key == key,
-                    orElse: () => PlayerButtonType.seekBackward,
-                  ))
-              .toList(),
-        );
+        final savedOrder = (jsonString.split(','))
+            .map((key) => PlayerButtonType.values.firstWhere(
+                  (type) => type.key == key,
+                  orElse: () => PlayerButtonType.seekBackward,
+                ))
+            .toList();
+
+        // 获取默认配置，用于合并新按钮
+        final defaultOrder = _isDesktop
+            ? PlayerButtonsConfig.defaultDesktop.buttonOrder
+            : PlayerButtonsConfig.defaultMobile.buttonOrder;
+
+        // 找出新添加的按钮（在默认配置中存在但保存的配置中不存在）
+        final newButtons = defaultOrder
+            .where((button) => !savedOrder.contains(button))
+            .toList();
+
+        // 将新按钮添加到末尾
+        final mergedOrder = [...savedOrder, ...newButtons];
+
+        state = PlayerButtonsConfig(buttonOrder: mergedOrder);
+
+        // 如果有新按钮被添加，保存更新后的配置
+        if (newButtons.isNotEmpty) {
+          await _saveConfig();
+        }
       }
     } catch (e) {
       // 如果加载失败，使用默认配置

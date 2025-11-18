@@ -4,8 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../../providers/audio_provider.dart';
+import '../../providers/lyric_provider.dart';
 import '../../providers/player_buttons_provider.dart';
 import '../responsive_dialog.dart';
+import '../subtitle_adjustment_dialog.dart';
 import '../volume_control.dart';
 import 'sleep_timer_button.dart';
 import 'sleep_timer_dialog.dart';
@@ -353,6 +355,32 @@ class _PlayerControlsWidgetState extends ConsumerState<PlayerControlsWidget> {
             ),
           ],
         );
+      case PlayerButtonType.subtitleAdjustment:
+        final lyricState = ref.watch(lyricControllerProvider);
+        final hasOffset = lyricState.timelineOffset != Duration.zero;
+        return ListTile(
+          leading: Icon(
+            Icons.tune,
+            color: hasOffset ? Theme.of(context).colorScheme.primary : null,
+          ),
+          title: const Text('字幕轴调整'),
+          trailing: hasOffset
+              ? Text(
+                  '${lyricState.timelineOffset.inMilliseconds}ms',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                )
+              : null,
+          onTap: () {
+            Navigator.pop(context);
+            showDialog(
+              context: context,
+              barrierColor: Colors.transparent,
+              builder: (context) => const SubtitleAdjustmentDialog(),
+            );
+          },
+        );
     }
   }
 
@@ -518,6 +546,29 @@ class _PlayerControlsWidgetState extends ConsumerState<PlayerControlsWidget> {
             if (!isLandscape) const SizedBox(height: 14),
           ],
         );
+      case PlayerButtonType.subtitleAdjustment:
+        final lyricState = ref.watch(lyricControllerProvider);
+        final hasOffset = lyricState.timelineOffset != Duration.zero;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  barrierColor: Colors.transparent,
+                  builder: (context) => const SubtitleAdjustmentDialog(),
+                );
+              },
+              icon: Badge(
+                isLabelVisible: hasOffset,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                child: const Icon(Icons.tune),
+              ),
+            ),
+            if (!isLandscape) const SizedBox(height: 14),
+          ],
+        );
     }
   }
 
@@ -660,14 +711,19 @@ class _PlayerControlsWidgetState extends ConsumerState<PlayerControlsWidget> {
                               moreButtons.contains(PlayerButtonType.repeat);
                           final hasSleepTimerInMore =
                               moreButtons.contains(PlayerButtonType.sleepTimer);
+                          final hasSubtitleAdjustmentInMore = moreButtons
+                              .contains(PlayerButtonType.subtitleAdjustment);
                           final timerState = ref.watch(sleepTimerProvider);
+                          final lyricState = ref.watch(lyricControllerProvider);
 
                           final shouldShowBadge = (hasSpeedInMore &&
                                   widget.audioState.speed != 1.0) ||
                               (hasRepeatInMore &&
                                   widget.audioState.repeatMode !=
                                       LoopMode.off) ||
-                              (hasSleepTimerInMore && timerState.isActive);
+                              (hasSleepTimerInMore && timerState.isActive) ||
+                              (hasSubtitleAdjustmentInMore &&
+                                  lyricState.timelineOffset != Duration.zero);
 
                           return Badge(
                             isLabelVisible: shouldShowBadge,

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/lyric.dart';
 import '../providers/audio_provider.dart';
 import '../providers/lyric_provider.dart';
-import 'subtitle_adjustment_dialog.dart';
 
 class LyricPlayerScreen extends ConsumerStatefulWidget {
   const LyricPlayerScreen({super.key});
@@ -250,23 +249,6 @@ class _LyricPlayerScreenState extends ConsumerState<LyricPlayerScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         actions: [
-          // 字幕轴调整按钮
-          if (lyricState.lyrics.isNotEmpty)
-            IconButton(
-              icon: Badge(
-                isLabelVisible: lyricState.timelineOffset != Duration.zero,
-                label: const Icon(Icons.check, size: 10),
-                child: const Icon(Icons.tune),
-              ),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  barrierColor: Colors.transparent,
-                  builder: (context) => const SubtitleAdjustmentDialog(),
-                );
-              },
-              tooltip: '字幕轴调整',
-            ),
           IconButton(
             icon: Icon(_autoScroll ? Icons.lock : Icons.lock_open),
             onPressed: () {
