@@ -70,7 +70,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
     final isOwner = playlist.userName == currentUserName;
 
     // 系统播放列表不能删除
-    if (playlist.isSystemPlaylist) {
+    if (playlist.isSystemPlaylist && isOwner) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('系统播放列表不能删除'),

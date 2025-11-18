@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/work_detail_display_provider.dart';
+import '../widgets/scrollable_appbar.dart';
 
 class WorkDetailDisplaySettingsScreen extends ConsumerWidget {
   const WorkDetailDisplaySettingsScreen({super.key});
@@ -12,8 +13,8 @@ class WorkDetailDisplaySettingsScreen extends ConsumerWidget {
     final notifier = ref.read(workDetailDisplayProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
+      appBar: const ScrollableAppBar(
+        title: Text(
           '作品详情显示设置',
           style: TextStyle(fontSize: 18),
         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/work_card_display_provider.dart';
+import '../widgets/scrollable_appbar.dart';
 
 class WorkCardDisplaySettingsScreen extends ConsumerWidget {
   const WorkCardDisplaySettingsScreen({super.key});
@@ -12,8 +13,8 @@ class WorkCardDisplaySettingsScreen extends ConsumerWidget {
     final notifier = ref.read(workCardDisplayProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
+      appBar: const ScrollableAppBar(
+        title: Text(
           '作品卡片显示设置',
           style: TextStyle(fontSize: 18),
         ),

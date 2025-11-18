@@ -5,6 +5,7 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../models/audio_track.dart';
 import '../services/audio_player_service.dart';
+import 'settings_provider.dart';
 
 // Audio Player Service Provider
 final audioPlayerServiceProvider = Provider<AudioPlayerService>((ref) {
@@ -73,14 +74,39 @@ final progressProvider = Provider<double>((ref) {
 // Audio Player Controller
 class AudioPlayerController extends StateNotifier<AudioPlayerState> {
   final AudioPlayerService _service;
+  final Ref _ref;
 
-  AudioPlayerController(this._service) : super(const AudioPlayerState());
+  AudioPlayerController(this._service, this._ref)
+      : super(const AudioPlayerState()) {
+    // 监听防社死设置变化
+    _ref.listen<PrivacyModeSettings>(
+      privacyModeSettingsProvider,
+      (previous, next) {
+        // 设置变化时更新音频服务
+        _service.updatePrivacySettings(
+          enabled: next.enabled,
+          blurCover: next.blurCover,
+          maskTitle: next.maskTitle,
+          customTitle: next.customTitle,
+        );
+      },
+    );
+  }
 
   Future<void> initialize() async {
     // Request notification permission for Android 13+
     await Permission.notification.request();
 
     await _service.initialize();
+
+    // 初始化时应用当前的防社死设置
+    final privacySettings = _ref.read(privacyModeSettingsProvider);
+    await _service.updatePrivacySettings(
+      enabled: privacySettings.enabled,
+      blurCover: privacySettings.blurCover,
+      maskTitle: privacySettings.maskTitle,
+      customTitle: privacySettings.customTitle,
+    );
 
     // Listen to player state changes
     _service.playerStateStream.listen((playerState) {
@@ -203,7 +229,7 @@ class AudioPlayerState {
 final audioPlayerControllerProvider =
     StateNotifierProvider<AudioPlayerController, AudioPlayerState>((ref) {
   final service = ref.watch(audioPlayerServiceProvider);
-  return AudioPlayerController(service);
+  return AudioPlayerController(service, ref);
 });
 
 // MiniPlayer Visibility Controller

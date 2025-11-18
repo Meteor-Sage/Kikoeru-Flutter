@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'player_buttons_settings_screen.dart';
 import 'work_detail_display_settings_screen.dart';
 import 'work_card_display_settings_screen.dart';
+import '../widgets/scrollable_appbar.dart';
 
 class UiSettingsScreen extends StatelessWidget {
   const UiSettingsScreen({super.key});
@@ -9,8 +10,8 @@ class UiSettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
+      appBar: const ScrollableAppBar(
+        title: Text(
           '界面设置',
           style: TextStyle(fontSize: 18),
         ),

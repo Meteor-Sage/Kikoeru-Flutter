@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'audio_format_settings_screen.dart';
+import 'privacy_mode_settings_screen.dart';
 import '../providers/settings_provider.dart';
+import '../widgets/scrollable_appbar.dart';
 
 /// 偏好设置页面
 class PreferencesScreen extends ConsumerWidget {
@@ -72,10 +74,11 @@ class PreferencesScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final priority = ref.watch(subtitleLibraryPriorityProvider);
+    final privacySettings = ref.watch(privacyModeSettingsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('偏好设置', style: TextStyle(fontSize: 18)),
+      appBar: const ScrollableAppBar(
+        title: Text('偏好设置', style: TextStyle(fontSize: 18)),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -83,6 +86,23 @@ class PreferencesScreen extends ConsumerWidget {
           Card(
             child: Column(
               children: [
+                ListTile(
+                  leading: Icon(Icons.privacy_tip_outlined,
+                      color: Theme.of(context).colorScheme.primary),
+                  title: const Text('防社死模式'),
+                  subtitle: Text(
+                    privacySettings.enabled ? '已启用 - 播放信息已隐藏' : '未启用',
+                  ),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const PrivacyModeSettingsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                Divider(color: Theme.of(context).colorScheme.outlineVariant),
                 ListTile(
                   leading: Icon(Icons.library_books,
                       color: Theme.of(context).colorScheme.primary),

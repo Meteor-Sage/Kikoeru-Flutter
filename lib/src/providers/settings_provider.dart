@@ -168,3 +168,96 @@ final audioFormatPreferenceProvider =
         (ref) {
   return AudioFormatPreferenceNotifier();
 });
+
+/// 防社死设置
+class PrivacyModeSettings {
+  final bool enabled;
+  final bool blurCover;
+  final bool maskTitle;
+  final String customTitle;
+
+  const PrivacyModeSettings({
+    this.enabled = false,
+    this.blurCover = true,
+    this.maskTitle = false,
+    this.customTitle = '正在播放音频',
+  });
+
+  PrivacyModeSettings copyWith({
+    bool? enabled,
+    bool? blurCover,
+    bool? maskTitle,
+    String? customTitle,
+  }) {
+    return PrivacyModeSettings(
+      enabled: enabled ?? this.enabled,
+      blurCover: blurCover ?? this.blurCover,
+      maskTitle: maskTitle ?? this.maskTitle,
+      customTitle: customTitle ?? this.customTitle,
+    );
+  }
+}
+
+/// 防社死设置控制器
+class PrivacyModeSettingsNotifier extends StateNotifier<PrivacyModeSettings> {
+  static const String _enabledKey = 'privacy_mode_enabled';
+  static const String _blurCoverKey = 'privacy_mode_blur_cover';
+  static const String _maskTitleKey = 'privacy_mode_mask_title';
+  static const String _customTitleKey = 'privacy_mode_custom_title';
+
+  PrivacyModeSettingsNotifier() : super(const PrivacyModeSettings()) {
+    _loadPreferences();
+  }
+
+  Future<void> _loadPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      state = PrivacyModeSettings(
+        enabled: prefs.getBool(_enabledKey) ?? false,
+        blurCover: prefs.getBool(_blurCoverKey) ?? true,
+        maskTitle: prefs.getBool(_maskTitleKey) ?? false,
+        customTitle: prefs.getString(_customTitleKey) ?? '正在播放音频',
+      );
+    } catch (e) {
+      // 加载失败，使用默认值
+      state = const PrivacyModeSettings();
+    }
+  }
+
+  Future<void> setEnabled(bool enabled) async {
+    state = state.copyWith(enabled: enabled);
+    await _savePreference(_enabledKey, enabled);
+  }
+
+  Future<void> setBlurCover(bool blur) async {
+    state = state.copyWith(blurCover: blur);
+    await _savePreference(_blurCoverKey, blur);
+  }
+
+  Future<void> setMaskTitle(bool mask) async {
+    state = state.copyWith(maskTitle: mask);
+    await _savePreference(_maskTitleKey, mask);
+  }
+
+  Future<void> setCustomTitle(String title) async {
+    state = state.copyWith(customTitle: title);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_customTitleKey, title);
+  }
+
+  Future<void> _savePreference(String key, bool value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(key, value);
+    } catch (e) {
+      // 保存失败时静默处理
+    }
+  }
+}
+
+/// 防社死设置提供者
+final privacyModeSettingsProvider =
+    StateNotifierProvider<PrivacyModeSettingsNotifier, PrivacyModeSettings>(
+        (ref) {
+  return PrivacyModeSettingsNotifier();
+});

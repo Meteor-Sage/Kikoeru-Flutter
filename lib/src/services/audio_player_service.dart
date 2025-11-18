@@ -8,6 +8,7 @@ import 'package:smtc_windows/smtc_windows.dart';
 import '../models/audio_track.dart';
 import 'cache_service.dart';
 import 'caching_stream_audio_source.dart';
+import '../utils/image_blur_util.dart';
 
 class AudioPlayerService {
   static AudioPlayerService? _instance;
@@ -39,6 +40,12 @@ class AudioPlayerService {
 
   // Windows SMTC support
   SMTCWindows? _smtc;
+
+  // Privacy mode settings
+  bool _privacyEnabled = false;
+  bool _privacyBlurCover = true;
+  bool _privacyMaskTitle = true;
+  String _privacyCustomTitle = '正在播放音频';
 
   // Stream controllers
   final StreamController<List<AudioTrack>> _queueController =
@@ -282,34 +289,76 @@ class AudioPlayerService {
       _currentTrackController.add(track);
 
       // Update media item for system controls
-      _updateMediaItem(track);
+      await _updateMediaItem(
+        track,
+        privacyEnabled: _privacyEnabled,
+        blurCover: _privacyBlurCover,
+        maskTitle: _privacyMaskTitle,
+        customTitle: _privacyCustomTitle,
+      );
     } catch (e) {
       print('Error loading audio source: $e');
     }
   }
 
   // Update media item for system notification
-  void _updateMediaItem(AudioTrack track) {
+  // privacySettings: 可选的防社死设置，如果提供则应用隐私保护
+  Future<void> _updateMediaItem(
+    AudioTrack track, {
+    bool privacyEnabled = false,
+    bool blurCover = true,
+    bool maskTitle = true,
+    String customTitle = '正在播放音频',
+  }) async {
     if (_audioHandler == null) return;
+
+    // 应用防社死设置
+    String displayTitle = track.title;
+    String? displayArtworkUrl = track.artworkUrl;
+
+    if (privacyEnabled) {
+      // 替换标题
+      if (maskTitle) {
+        displayTitle = customTitle;
+      }
+
+      // 模糊封面
+      if (blurCover && displayArtworkUrl != null) {
+        try {
+          // 生成模糊后的封面并保存到临时文件
+          final blurredFilePath =
+              await ImageBlurUtil.blurNetworkImageToFile(displayArtworkUrl);
+          if (blurredFilePath != null) {
+            displayArtworkUrl = blurredFilePath;
+          } else {
+            // 模糊失败，隐藏封面
+            displayArtworkUrl = null;
+          }
+        } catch (e) {
+          print('模糊封面失败: $e');
+          displayArtworkUrl = null;
+        }
+      }
+    }
 
     (_audioHandler as _AudioPlayerHandler).mediaItem.add(MediaItem(
           id: track.id,
           album: track.album ?? '',
-          title: track.title,
+          title: displayTitle,
           artist: track.artist ?? '',
           duration: track.duration,
           artUri:
-              track.artworkUrl != null ? Uri.parse(track.artworkUrl!) : null,
+              displayArtworkUrl != null ? Uri.parse(displayArtworkUrl) : null,
         ));
 
     // Update Windows SMTC media info
     if (Platform.isWindows && _smtc != null) {
       _smtc!.updateMetadata(
         MusicMetadata(
-          title: track.title,
+          title: displayTitle,
           artist: track.artist ?? '',
           album: track.album ?? '',
-          thumbnail: track.artworkUrl,
+          thumbnail: displayArtworkUrl,
         ),
       );
     }
@@ -501,6 +550,31 @@ class AudioPlayerService {
 
   Future<void> setSpeed(double speed) async {
     await _player.setSpeed(speed.clamp(0.5, 2.0));
+  }
+
+  // Privacy mode settings
+  /// 更新防社死设置
+  Future<void> updatePrivacySettings({
+    required bool enabled,
+    required bool blurCover,
+    required bool maskTitle,
+    required String customTitle,
+  }) async {
+    _privacyEnabled = enabled;
+    _privacyBlurCover = blurCover;
+    _privacyMaskTitle = maskTitle;
+    _privacyCustomTitle = customTitle;
+
+    // 如果当前有正在播放的音轨，立即更新媒体信息
+    if (currentTrack != null) {
+      await _updateMediaItem(
+        currentTrack!,
+        privacyEnabled: _privacyEnabled,
+        blurCover: _privacyBlurCover,
+        maskTitle: _privacyMaskTitle,
+        customTitle: _privacyCustomTitle,
+      );
+    }
   }
 
   // Cleanup

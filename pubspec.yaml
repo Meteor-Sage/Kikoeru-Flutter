@@ -49,6 +49,7 @@ dependencies:
   # Utilities
   json_annotation: ^4.8.1
   equatable: ^2.0.5
+  crypto: ^3.0.3
   
   # Permissions
   permission_handler: ^11.1.0
