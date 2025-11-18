@@ -196,6 +196,73 @@ class PlaylistDetailNotifier extends StateNotifier<PlaylistDetailState> {
       rethrow;
     }
   }
+
+  /// 编辑播放列表元数据
+  Future<void> updateMetadata({
+    required String name,
+    required int privacy,
+    required String description,
+  }) async {
+    if (state.metadata == null) return;
+
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      final response = await _apiService.editPlaylistMetadata(
+        id: state.metadata!.id,
+        name: name,
+        privacy: privacy,
+        description: description,
+      );
+
+      // 更新元数据
+      final updatedMetadata = Playlist.fromJson(response);
+      state = state.copyWith(
+        metadata: updatedMetadata,
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: '编辑播放列表失败: ${e.toString()}',
+      );
+      rethrow;
+    }
+  }
+
+  /// 添加作品到播放列表
+  Future<void> addWorks(List<String> workIds) async {
+    if (state.metadata == null) return;
+
+    try {
+      await _apiService.addWorksToPlaylist(
+        playlistId: state.metadata!.id,
+        works: workIds,
+      );
+
+      // 刷新列表以显示新添加的作品
+      await refresh();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// 从播放列表移除作品
+  Future<void> removeWork(int workId) async {
+    if (state.metadata == null) return;
+
+    try {
+      await _apiService.removeWorksFromPlaylist(
+        playlistId: state.metadata!.id,
+        works: [workId],
+      );
+
+      // 刷新列表以更新显示
+      await refresh();
+    } catch (e) {
+      rethrow;
+    }
+  }
 }
 
 /// 播放列表详情 Provider Family

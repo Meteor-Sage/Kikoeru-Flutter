@@ -864,6 +864,69 @@ class KikoeruApiService {
     }
   }
 
+  /// 编辑播放列表元数据
+  Future<Map<String, dynamic>> editPlaylistMetadata({
+    required String id,
+    required String name,
+    required int privacy,
+    required String description,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/playlist/edit-playlist-metadata',
+        data: {
+          'id': id,
+          'data': {
+            'name': name,
+            'privacy': privacy,
+            'description': description,
+          },
+        },
+      );
+      return response.data;
+    } catch (e) {
+      throw KikoeruApiException('Failed to edit playlist metadata', e);
+    }
+  }
+
+  /// 添加作品到播放列表
+  Future<Map<String, dynamic>> addWorksToPlaylist({
+    required String playlistId,
+    required List<String> works,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/playlist/add-works-to-playlist',
+        data: {
+          'id': playlistId,
+          'works': works,
+        },
+      );
+      return response.data;
+    } catch (e) {
+      throw KikoeruApiException('Failed to add works to playlist', e);
+    }
+  }
+
+  /// 从播放列表移除作品
+  Future<Map<String, dynamic>> removeWorksFromPlaylist({
+    required String playlistId,
+    required List<int> works,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/api/playlist/remove-works-from-playlist',
+        data: {
+          'id': playlistId,
+          'works': works,
+        },
+      );
+      return response.data;
+    } catch (e) {
+      throw KikoeruApiException('Failed to remove works from playlist', e);
+    }
+  }
+
   /// 获取播放列表元数据
   Future<Map<String, dynamic>> getPlaylistMetadata(String playlistId) async {
     try {
