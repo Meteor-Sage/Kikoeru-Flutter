@@ -20,7 +20,14 @@ class SnackBarUtil {
               size: 20,
             ),
             const SizedBox(width: 12),
-            Expanded(child: Text(message)),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
+              ),
+            ),
           ],
         ),
         behavior: SnackBarBehavior.floating,
@@ -46,7 +53,14 @@ class SnackBarUtil {
               size: 20,
             ),
             const SizedBox(width: 12),
-            Expanded(child: Text(message)),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onError,
+                ),
+              ),
+            ),
           ],
         ),
         behavior: SnackBarBehavior.floating,
@@ -77,7 +91,14 @@ class SnackBarUtil {
               size: 20,
             ),
             const SizedBox(width: 12),
-            Expanded(child: Text(message)),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(
+                  color: onWarningColor,
+                ),
+              ),
+            ),
           ],
         ),
         behavior: SnackBarBehavior.floating,
@@ -103,7 +124,14 @@ class SnackBarUtil {
               size: 20,
             ),
             const SizedBox(width: 12),
-            Expanded(child: Text(message)),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSecondaryContainer,
+                ),
+              ),
+            ),
           ],
         ),
         behavior: SnackBarBehavior.floating,
@@ -134,7 +162,14 @@ class SnackBarUtil {
               ),
             ),
             const SizedBox(width: 12),
-            Expanded(child: Text(message)),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSecondaryContainer,
+                ),
+              ),
+            ),
           ],
         ),
         behavior: SnackBarBehavior.floating,

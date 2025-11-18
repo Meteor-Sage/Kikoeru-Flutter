@@ -8,6 +8,7 @@ import 'package:path/path.dart' as path;
 import '../providers/lyric_provider.dart';
 import '../providers/audio_provider.dart';
 import '../services/subtitle_library_service.dart';
+import '../utils/snackbar_util.dart';
 
 /// 字幕轴调整对话框
 class SubtitleAdjustmentDialog extends ConsumerStatefulWidget {
@@ -95,25 +96,12 @@ class _SubtitleAdjustmentDialogState
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('已保存到: $filePath'),
-            duration: const Duration(seconds: 3),
-            action: SnackBarAction(
-              label: '确定',
-              onPressed: () {},
-            ),
-          ),
-        );
+        SnackBarUtil.showSuccess(context, '已保存到: $filePath',
+            duration: const Duration(seconds: 3));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('保存失败: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        SnackBarUtil.showError(context, '保存失败: $e');
       }
     } finally {
       if (mounted) {
@@ -158,25 +146,11 @@ class _SubtitleAdjustmentDialogState
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('已保存到字幕库'),
-            duration: const Duration(seconds: 2),
-            action: SnackBarAction(
-              label: '确定',
-              onPressed: () {},
-            ),
-          ),
-        );
+        SnackBarUtil.showSuccess(context, '已保存到字幕库');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('保存失败: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        SnackBarUtil.showError(context, '保存失败: $e');
       }
     } finally {
       if (mounted) {

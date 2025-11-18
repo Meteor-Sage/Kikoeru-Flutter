@@ -4,6 +4,7 @@ import '../models/work.dart';
 import '../services/download_service.dart';
 import '../utils/string_utils.dart';
 import '../utils/file_icon_utils.dart';
+import '../utils/snackbar_util.dart';
 import '../providers/auth_provider.dart';
 
 class FileSelectionDialog extends ConsumerStatefulWidget {
@@ -226,9 +227,7 @@ class _FileSelectionDialogState extends ConsumerState<FileSelectionDialog> {
     final selectedFilesWithPaths = _getSelectedFilesWithPaths();
     if (selectedFilesWithPaths.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('请至少选择一个文件')),
-        );
+        SnackBarUtil.showWarning(context, '请至少选择一个文件');
       }
       return;
     }
@@ -268,10 +267,8 @@ class _FileSelectionDialogState extends ConsumerState<FileSelectionDialog> {
 
     if (mounted) {
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('已添加 ${selectedFilesWithPaths.length} 个文件到下载队列')),
-      );
+      SnackBarUtil.showSuccess(
+          context, '已添加 ${selectedFilesWithPaths.length} 个文件到下载队列');
     }
   }
 

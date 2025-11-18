@@ -7,6 +7,7 @@ import '../providers/audio_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/lyric_provider.dart';
 import '../screens/audio_player_screen.dart';
+import '../utils/snackbar_util.dart';
 import 'volume_control.dart';
 
 class MiniPlayer extends ConsumerStatefulWidget {

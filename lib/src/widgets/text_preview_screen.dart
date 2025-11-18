@@ -7,6 +7,7 @@ import 'package:path/path.dart' as path;
 import '../services/cache_service.dart';
 import '../services/translation_service.dart';
 import '../services/subtitle_library_service.dart';
+import '../utils/snackbar_util.dart';
 import 'scrollable_appbar.dart';
 
 /// 文本预览屏幕
@@ -108,7 +109,7 @@ class _TextPreviewScreenState extends State<TextPreviewScreen> {
     // 获取当前显示的内容（可能是编辑后的）
     final contentToSave = _getCurrentContent();
     if (contentToSave == null || contentToSave.isEmpty) {
-      _showSnackBar('没有可保存的内容', Colors.orange);
+      SnackBarUtil.showWarning(context, '没有可保存的内容');
       return;
     }
 
@@ -137,9 +138,9 @@ class _TextPreviewScreenState extends State<TextPreviewScreen> {
       final file = File(finalPath);
       await file.writeAsString(contentToSave);
 
-      _showSnackBar('文件已保存到：$finalPath', Colors.green);
+      SnackBarUtil.showSuccess(context, '文件已保存到：$finalPath');
     } catch (e) {
-      _showSnackBar('保存失败: $e', Colors.red);
+      SnackBarUtil.showError(context, '保存失败: $e');
     }
   }
 
@@ -147,7 +148,7 @@ class _TextPreviewScreenState extends State<TextPreviewScreen> {
     // 获取当前显示的内容（可能是编辑后的）
     final contentToSave = _getCurrentContent();
     if (contentToSave == null || contentToSave.isEmpty) {
-      _showSnackBar('没有可保存的内容', Colors.orange);
+      SnackBarUtil.showWarning(context, '没有可保存的内容');
       return;
     }
 
@@ -182,24 +183,13 @@ class _TextPreviewScreenState extends State<TextPreviewScreen> {
       final file = File(finalPath);
       await file.writeAsString(contentToSave);
 
-      _showSnackBar('已保存到字幕库', Colors.green);
+      SnackBarUtil.showSuccess(context, '已保存到字幕库');
 
       // 触发字幕库重载回调
       widget.onSavedToLibrary?.call();
     } catch (e) {
-      _showSnackBar('保存失败: $e', Colors.red);
+      SnackBarUtil.showError(context, '保存失败: $e');
     }
-  }
-
-  void _showSnackBar(String message, Color backgroundColor) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: backgroundColor,
-        duration: const Duration(seconds: 2),
-      ),
-    );
   }
 
   String? _getCurrentContent() {
@@ -329,12 +319,7 @@ class _TextPreviewScreenState extends State<TextPreviewScreen> {
         _translationProgress = '';
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('翻译失败: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarUtil.showError(context, '翻译失败: $e');
       }
     }
   }

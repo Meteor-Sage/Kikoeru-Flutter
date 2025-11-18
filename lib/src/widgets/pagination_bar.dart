@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../utils/snackbar_util.dart';
 
 /// 通用分页控制栏组件
 class PaginationBar extends StatefulWidget {
@@ -210,17 +211,13 @@ class _PaginationBarState extends State<PaginationBar> {
   void _handleJump(BuildContext dialogContext) {
     final pageStr = _pageController.text.trim();
     if (pageStr.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请输入页码')),
-      );
+      SnackBarUtil.showWarning(context, '请输入页码');
       return;
     }
 
     final targetPage = int.tryParse(pageStr);
     if (targetPage == null || targetPage < 1 || targetPage > _maxPage) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('请输入有效页码 (1-$_maxPage)')),
-      );
+      SnackBarUtil.showWarning(context, '请输入有效页码 (1-$_maxPage)');
       return;
     }
 

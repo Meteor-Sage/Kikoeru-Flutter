@@ -7,6 +7,7 @@ import 'package:saver_gallery/saver_gallery.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../utils/snackbar_util.dart';
 import 'cached_image_widget.dart';
 
 /// 图片画廊屏幕，支持查看、缩放、保存图片
@@ -127,12 +128,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('保存失败: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarUtil.showError(context, '保存失败: $e');
       }
     } finally {
       if (mounted) {
@@ -173,12 +169,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
             await openAppSettings();
           }
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('需要存储权限才能保存图片'),
-              backgroundColor: Colors.orange,
-            ),
-          );
+          SnackBarUtil.showWarning(context, '需要存储权限才能保存图片');
         }
       }
       return;
@@ -193,19 +184,10 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
 
     if (mounted) {
       if (result.isSuccess) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('图片已保存到相册'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        SnackBarUtil.showSuccess(context, '图片已保存到相册');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('保存失败: ${result.errorMessage ?? "未知错误"}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarUtil.showError(
+            context, '保存失败: ${result.errorMessage ?? "未知错误"}');
       }
     }
   }
@@ -233,12 +215,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
         );
 
         if (outputFile != null && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('图片已保存'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          SnackBarUtil.showSuccess(context, '图片已保存');
         }
 
         if (await tempFile.exists()) {
@@ -246,12 +223,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('保存失败: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          SnackBarUtil.showError(context, '保存失败: $e');
         }
       }
     } else {
@@ -266,12 +238,7 @@ class _ImageGalleryScreenState extends State<ImageGalleryScreen> {
         await file.writeAsBytes(imageBytes);
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('图片已保存到: $outputFile'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          SnackBarUtil.showSuccess(context, '图片已保存到: $outputFile');
         }
       }
     }

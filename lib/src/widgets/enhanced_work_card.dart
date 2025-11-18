@@ -5,6 +5,7 @@ import '../models/work.dart';
 import '../providers/auth_provider.dart';
 import '../providers/work_card_display_provider.dart';
 import '../screens/work_detail_screen.dart';
+import '../utils/snackbar_util.dart';
 import 'tag_chip.dart';
 import 'va_chip.dart';
 import 'work_bookmark_manager.dart';
@@ -55,13 +56,7 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
     } catch (e) {
       setState(() => _loadingProgress = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('获取状态失败: $e'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        SnackBarUtil.showError(context, '获取状态失败: $e');
       }
     }
   }

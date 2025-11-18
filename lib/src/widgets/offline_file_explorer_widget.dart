@@ -12,6 +12,7 @@ import '../providers/audio_provider.dart';
 import '../providers/lyric_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/file_icon_utils.dart';
+import '../utils/snackbar_util.dart';
 import 'responsive_dialog.dart';
 import 'image_gallery_screen.dart';
 import 'text_preview_screen.dart';
@@ -486,7 +487,7 @@ class _OfflineFileExplorerWidgetState
     final title = _getProperty(audioFile, 'title', defaultValue: '未知');
 
     if (hash == null) {
-      _showSnackBar('无法播放音频：缺少文件标识', isError: true);
+      SnackBarUtil.showError(context, '无法播放音频：缺少文件标识');
       return;
     }
 
@@ -497,7 +498,7 @@ class _OfflineFileExplorerWidgetState
     final localFile = File(localPath);
 
     if (!await localFile.exists()) {
-      _showSnackBar('音频文件不存在', isError: true);
+      SnackBarUtil.showError(context, '音频文件不存在');
       return;
     }
 
@@ -519,7 +520,7 @@ class _OfflineFileExplorerWidgetState
         audioFiles.indexWhere((file) => _getProperty(file, 'hash') == hash);
 
     if (currentIndex == -1) {
-      _showSnackBar('无法找到音频文件: $title', isError: true);
+      SnackBarUtil.showError(context, '无法找到音频文件: $title');
       return;
     }
 
@@ -564,7 +565,7 @@ class _OfflineFileExplorerWidgetState
     }
 
     if (audioTracks.isEmpty) {
-      _showSnackBar('没有找到可播放的音频文件', isError: true);
+      SnackBarUtil.showError(context, '没有找到可播放的音频文件');
       return;
     }
 
@@ -577,7 +578,7 @@ class _OfflineFileExplorerWidgetState
           startIndex: startIndex,
         );
 
-    _showSnackBar('正在播放: $title (${startIndex + 1}/${audioTracks.length})');
+    SnackBarUtil.showInfo(context, '正在播放: $title (${startIndex + 1}/${audioTracks.length})');
   }
 
   // 获取同一目录下的所有音频文件（不递归子文件夹）
@@ -637,7 +638,7 @@ class _OfflineFileExplorerWidgetState
     final currentTrack = currentTrackAsync.value;
 
     if (currentTrack == null) {
-      _showSnackBar('当前没有播放的音频，无法加载字幕', isError: true);
+      SnackBarUtil.showError(context, '当前没有播放的音频，无法加载字幕');
       return;
     }
 
@@ -703,9 +704,9 @@ class _OfflineFileExplorerWidgetState
             file,
             workId: widget.work.id,
           );
-      _showSnackBar('字幕加载成功：$title');
+      SnackBarUtil.showSuccess(context, '字幕加载成功：$title');
     } catch (e) {
-      _showSnackBar('字幕加载失败：$e', isError: true);
+      SnackBarUtil.showError(context, '字幕加载失败：$e');
     }
   }
 
@@ -719,7 +720,7 @@ class _OfflineFileExplorerWidgetState
         (f) => _getProperty(f, 'hash') == _getProperty(file, 'hash'));
 
     if (currentIndex == -1) {
-      _showSnackBar('无法找到图片文件', isError: true);
+      SnackBarUtil.showError(context, '无法找到图片文件');
       return;
     }
 
@@ -740,7 +741,7 @@ class _OfflineFileExplorerWidgetState
     }
 
     if (imageItems.isEmpty) {
-      _showSnackBar('没有找到可预览的图片', isError: true);
+      SnackBarUtil.showError(context, '没有找到可预览的图片');
       return;
     }
 
@@ -810,13 +811,13 @@ class _OfflineFileExplorerWidgetState
     final title = _getProperty(file, 'title', defaultValue: '未知文本');
 
     if (hash == null) {
-      _showSnackBar('无法预览文本：缺少文件标识', isError: true);
+      SnackBarUtil.showError(context, '无法预览文本：缺少文件标识');
       return;
     }
 
     final filePath = await _findFileFullPath(file, _localFiles, '');
     if (filePath == null) {
-      _showSnackBar('无法找到文件路径', isError: true);
+      SnackBarUtil.showError(context, '无法找到文件路径');
       return;
     }
 
@@ -825,7 +826,7 @@ class _OfflineFileExplorerWidgetState
     final localFile = File(localPath);
 
     if (!await localFile.exists()) {
-      _showSnackBar('文件不存在：$title', isError: true);
+      SnackBarUtil.showError(context, '文件不存在：$title');
       return;
     }
 
@@ -847,13 +848,13 @@ class _OfflineFileExplorerWidgetState
     final title = _getProperty(file, 'title', defaultValue: '未知PDF');
 
     if (hash == null) {
-      _showSnackBar('无法预览PDF：缺少文件标识', isError: true);
+      SnackBarUtil.showError(context, '无法预览PDF：缺少文件标识');
       return;
     }
 
     final filePath = await _findFileFullPath(file, _localFiles, '');
     if (filePath == null) {
-      _showSnackBar('无法找到文件路径', isError: true);
+      SnackBarUtil.showError(context, '无法找到文件路径');
       return;
     }
 
@@ -862,7 +863,7 @@ class _OfflineFileExplorerWidgetState
     final localFile = File(localPath);
 
     if (!await localFile.exists()) {
-      _showSnackBar('文件不存在：$title', isError: true);
+      SnackBarUtil.showError(context, '文件不存在：$title');
       return;
     }
 
@@ -883,13 +884,13 @@ class _OfflineFileExplorerWidgetState
     final hash = _getProperty(videoFile, 'hash');
 
     if (hash == null) {
-      _showSnackBar('无法播放视频：缺少文件标识', isError: true);
+      SnackBarUtil.showError(context, '无法播放视频：缺少文件标识');
       return;
     }
 
     final filePath = await _findFileFullPath(videoFile, _localFiles, '');
     if (filePath == null) {
-      _showSnackBar('无法找到文件路径', isError: true);
+      SnackBarUtil.showError(context, '无法找到文件路径');
       return;
     }
 
@@ -898,7 +899,7 @@ class _OfflineFileExplorerWidgetState
     final localFile = File(localPath);
 
     if (!await localFile.exists()) {
-      _showSnackBar('视频文件不存在', isError: true);
+      SnackBarUtil.showError(context, '视频文件不存在');
       return;
     }
 
@@ -941,19 +942,8 @@ class _OfflineFileExplorerWidgetState
         }
       }
     } catch (e) {
-      _showSnackBar('打开视频文件时出错: $e', isError: true);
+      SnackBarUtil.showError(context, '打开视频文件时出错: $e');
     }
-  }
-
-  void _showSnackBar(String message, {bool isError = false}) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.red : null,
-        duration: Duration(seconds: isError ? 3 : 2),
-      ),
-    );
   }
 
   @override
@@ -1302,7 +1292,7 @@ class _OfflineFileExplorerWidgetState
     } else if (FileIconUtils.isTextFile(file)) {
       _previewTextFile(file);
     } else {
-      _showSnackBar('暂不支持打开此类型文件: $title');
+      SnackBarUtil.showInfo(context, '暂不支持打开此类型文件: $title');
     }
   }
 
@@ -1374,7 +1364,7 @@ class _OfflineFileExplorerWidgetState
 
       // 显示成功消息
       if (mounted) {
-        _showSnackBar('已删除: $title');
+        SnackBarUtil.showSuccess(context, '已删除: $title');
       }
     } catch (e) {
       // 关闭加载指示器
@@ -1384,7 +1374,7 @@ class _OfflineFileExplorerWidgetState
 
       // 显示错误消息
       if (mounted) {
-        _showSnackBar('删除失败: $e', isError: true);
+        SnackBarUtil.showError(context, '删除失败: $e');
       }
     }
   }

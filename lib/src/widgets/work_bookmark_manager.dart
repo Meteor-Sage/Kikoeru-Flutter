@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/auth_provider.dart';
 import '../providers/my_reviews_provider.dart';
+import '../utils/snackbar_util.dart';
 import 'review_progress_dialog.dart';
 
 /// 作品标记管理器 - 封装标记状态的逻辑和UI
@@ -40,13 +41,7 @@ class WorkBookmarkManager {
           await apiService.deleteReview(workId);
 
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('已移除标记'),
-                duration: Duration(seconds: 2),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
+            SnackBarUtil.showSuccess(context, '已移除标记');
           }
 
           // 更新状态
@@ -88,13 +83,7 @@ class WorkBookmarkManager {
           }
 
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(message),
-                duration: const Duration(seconds: 2),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
+            SnackBarUtil.showSuccess(context, message);
           }
 
           // 更新状态
@@ -107,13 +96,7 @@ class WorkBookmarkManager {
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('操作失败: $e'),
-              duration: const Duration(seconds: 2),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+          SnackBarUtil.showError(context, '操作失败: $e');
         }
       }
     }
