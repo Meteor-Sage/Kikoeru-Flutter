@@ -5,6 +5,7 @@ import '../providers/my_reviews_provider.dart';
 import '../widgets/enhanced_work_card.dart';
 import '../widgets/pagination_bar.dart';
 import '../utils/responsive_grid_helper.dart';
+import '../widgets/download_fab.dart';
 import '../services/download_service.dart';
 import '../models/download_task.dart';
 import 'downloads_screen.dart';
@@ -196,25 +197,31 @@ class _MyScreenState extends ConsumerState<MyScreen>
       floatingActionButton: AnimatedBuilder(
         animation: _tabController,
         builder: (context, child) {
-          // 在字幕库标签页（索引2）时不显示下载按钮
-          if (_tabController.index == 2) {
-            return const SizedBox.shrink();
+          // 在线标记页（索引0）：有下载任务时显示
+          if (_tabController.index == 0) {
+            return const DownloadFab();
           }
-          return StreamBuilder<List<DownloadTask>>(
-            stream: DownloadService.instance.tasksStream,
-            builder: (context, snapshot) {
-              final activeCount = DownloadService.instance.activeDownloadCount;
-              return Badge(
-                isLabelVisible: activeCount > 0,
-                label: Text('$activeCount'),
-                child: FloatingActionButton(
-                  onPressed: _navigateToDownloads,
-                  tooltip: '下载任务',
-                  child: const Icon(Icons.download),
-                ),
-              );
-            },
-          );
+          // 本地下载页（索引1）：始终显示
+          if (_tabController.index == 1) {
+            return StreamBuilder<List<DownloadTask>>(
+              stream: DownloadService.instance.tasksStream,
+              builder: (context, snapshot) {
+                final activeCount =
+                    DownloadService.instance.activeDownloadCount;
+                return Badge(
+                  isLabelVisible: activeCount > 0,
+                  label: Text('$activeCount'),
+                  child: FloatingActionButton(
+                    onPressed: _navigateToDownloads,
+                    tooltip: '下载任务',
+                    child: const Icon(Icons.download),
+                  ),
+                );
+              },
+            );
+          }
+          // 其他标签页：不显示
+          return const SizedBox.shrink();
         },
       ),
       body: TabBarView(

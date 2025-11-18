@@ -13,6 +13,7 @@ import '../widgets/va_chip.dart';
 import '../widgets/circle_chip.dart';
 import '../widgets/offline_file_explorer_widget.dart';
 import '../widgets/global_audio_player_wrapper.dart';
+import '../widgets/download_fab.dart';
 
 /// 离线作品详情页 - 使用下载时保存的元数据展示作品信息
 /// 不依赖网络请求，完全离线可用
@@ -132,6 +133,7 @@ class _OfflineWorkDetailScreenState
       value: systemOverlayStyle,
       child: GlobalAudioPlayerWrapper(
         child: Scaffold(
+          floatingActionButton: const DownloadFab(),
           appBar: ScrollableAppBar(
             systemOverlayStyle: systemOverlayStyle,
             title: GestureDetector(

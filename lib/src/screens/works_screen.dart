@@ -11,6 +11,7 @@ import '../widgets/sort_dialog.dart';
 import '../widgets/pagination_bar.dart';
 import '../utils/responsive_grid_helper.dart';
 import '../widgets/scrollable_appbar.dart';
+import '../widgets/download_fab.dart';
 
 class WorksScreen extends ConsumerStatefulWidget {
   const WorksScreen({super.key});
@@ -164,6 +165,7 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
     final horizontalPadding = isLandscape ? 24.0 : 8.0;
 
     return Scaffold(
+      floatingActionButton: const DownloadFab(),
       appBar: ScrollableAppBar(
         toolbarHeight: 56,
         flexibleSpace: SafeArea(

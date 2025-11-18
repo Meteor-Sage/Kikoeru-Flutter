@@ -19,6 +19,7 @@ import '../widgets/work_bookmark_manager.dart';
 import '../widgets/review_progress_dialog.dart';
 import '../widgets/rating_detail_popup.dart';
 import '../services/translation_service.dart';
+import '../widgets/download_fab.dart';
 
 class WorkDetailScreen extends ConsumerStatefulWidget {
   final Work work;
@@ -531,6 +532,7 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
 
     return GlobalAudioPlayerWrapper(
       child: Scaffold(
+        floatingActionButton: const DownloadFab(),
         appBar: ScrollableAppBar(
           systemOverlayStyle: systemOverlayStyle,
           // RJ号作为标题,支持长按复制

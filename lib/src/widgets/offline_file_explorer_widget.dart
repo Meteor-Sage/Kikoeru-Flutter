@@ -156,37 +156,10 @@ class _OfflineFileExplorerWidgetState
 
           // 根据文件扩展名确定正确的类型
           String fileType = type; // 默认使用现有类型
-          final lowerTitle = title.toLowerCase();
 
           // 如果类型是 'file' 或为空，根据扩展名重新判断
           if (type == 'file' || type == null || type.isEmpty) {
-            if (lowerTitle.endsWith('.mp3') ||
-                lowerTitle.endsWith('.wav') ||
-                lowerTitle.endsWith('.flac') ||
-                lowerTitle.endsWith('.m4a') ||
-                lowerTitle.endsWith('.aac') ||
-                lowerTitle.endsWith('.ogg')) {
-              fileType = 'audio';
-            } else if (lowerTitle.endsWith('.mp4') ||
-                lowerTitle.endsWith('.mkv') ||
-                lowerTitle.endsWith('.avi') ||
-                lowerTitle.endsWith('.mov')) {
-              fileType = 'video';
-            } else if (lowerTitle.endsWith('.jpg') ||
-                lowerTitle.endsWith('.jpeg') ||
-                lowerTitle.endsWith('.png') ||
-                lowerTitle.endsWith('.gif')) {
-              fileType = 'image';
-            } else if (lowerTitle.endsWith('.txt') ||
-                lowerTitle.endsWith('.vtt') ||
-                lowerTitle.endsWith('.srt') ||
-                lowerTitle.endsWith('.lrc')) {
-              fileType = 'text';
-            } else if (lowerTitle.endsWith('.pdf')) {
-              fileType = 'pdf';
-            } else {
-              fileType = 'file';
-            }
+            fileType = FileIconUtils.inferFileType(title);
           }
 
           // 统一创建或修正 Map
@@ -242,7 +215,7 @@ class _OfflineFileExplorerWidgetState
           case 'mediaType':
             return (item as dynamic).type ?? defaultValue;
           case 'duration':
-            return null;
+            return (item as dynamic).duration ?? defaultValue;
           default:
             return defaultValue;
         }
@@ -461,25 +434,50 @@ class _OfflineFileExplorerWidgetState
     });
   }
 
-  // 格式化持续时间
-  String _formatDuration(dynamic durationValue) {
-    if (durationValue == null) return '';
+  // 格式化文件大小
+  String _formatFileSize(int? bytes) {
+    if (bytes == null || bytes <= 0) return '';
 
-    final totalSeconds = durationValue is int
-        ? durationValue
-        : (durationValue is double ? durationValue.toInt() : 0);
+    const units = ['B', 'KB', 'MB', 'GB'];
+    int unitIndex = 0;
+    double size = bytes.toDouble();
 
-    if (totalSeconds <= 0) return '';
-
-    final hours = totalSeconds ~/ 3600;
-    final minutes = (totalSeconds % 3600) ~/ 60;
-    final seconds = totalSeconds % 60;
-
-    if (hours > 0) {
-      return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-    } else {
-      return '$minutes:${seconds.toString().padLeft(2, '0')}';
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
     }
+
+    if (unitIndex == 0) {
+      return '$bytes B';
+    } else {
+      return '${size.toStringAsFixed(2)} ${units[unitIndex]}';
+    }
+  }
+
+  // 获取文件大小（从元数据或本地文件）
+  Future<int?> _getFileSize(dynamic item, String parentPath) async {
+    // 先尝试从元数据获取
+    final metaSize = _getProperty(item, 'size');
+    if (metaSize != null && metaSize is int && metaSize > 0) {
+      return metaSize;
+    }
+
+    // 如果元数据没有，从本地文件读取
+    final title = _getProperty(item, 'title', defaultValue: '');
+    final relativePath = parentPath.isEmpty ? title : '$parentPath/$title';
+
+    try {
+      final downloadDir = await DownloadPathService.getDownloadDirectory();
+      final file = File('${downloadDir.path}/${widget.work.id}/$relativePath');
+
+      if (await file.exists()) {
+        return await file.length();
+      }
+    } catch (e) {
+      // 忽略错误
+    }
+
+    return null;
   }
 
   // 播放音频文件（从本地）
@@ -1162,7 +1160,7 @@ class _OfflineFileExplorerWidgetState
                   size: 24,
                 ),
                 const SizedBox(width: 12),
-                // 文件名 + 持续时间
+                // 文件名 + 时长 + 文件大小
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1174,16 +1172,28 @@ class _OfflineFileExplorerWidgetState
                           fontWeight: FontWeight.w400,
                         ),
                       ),
-                      // 显示持续时间（仅音频和视频）
-                      if ((type == 'audio' ||
-                              FileIconUtils.isVideoFile(item)) &&
-                          _getProperty(item, 'duration') != null)
-                        Text(
-                          _formatDuration(_getProperty(item, 'duration')),
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[600],
-                          ),
+                      // 显示文件大小
+                      if (!isFolder)
+                        FutureBuilder<int?>(
+                          future: _getFileSize(item, parentPath),
+                          builder: (context, snapshot) {
+                            // 获取文件大小
+                            final fileSize = snapshot.hasData
+                                ? _formatFileSize(snapshot.data)
+                                : '';
+
+                            if (fileSize.isEmpty) {
+                              return const SizedBox.shrink();
+                            }
+
+                            return Text(
+                              fileSize,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                              ),
+                            );
+                          },
                         ),
                     ],
                   ),

@@ -11,6 +11,7 @@ import '../providers/settings_provider.dart';
 import '../providers/update_provider.dart';
 import '../services/cache_service.dart';
 import '../widgets/scrollable_appbar.dart';
+import '../widgets/download_fab.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -159,6 +160,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ];
 
     return Scaffold(
+      floatingActionButton: const DownloadFab(),
       appBar: const ScrollableAppBar(
         title: Text('设置', style: TextStyle(fontSize: 18)),
       ),

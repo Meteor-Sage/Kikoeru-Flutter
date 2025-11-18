@@ -256,6 +256,7 @@ class AudioFile extends Equatable {
   final String? mediaDownloadUrl;
 
   final int? size;
+  final dynamic duration; // 时长（秒），可能是 int 或 double
 
   const AudioFile({
     required this.title,
@@ -264,6 +265,7 @@ class AudioFile extends Equatable {
     this.children,
     this.mediaDownloadUrl,
     this.size,
+    this.duration,
   });
 
   factory AudioFile.fromJson(Map<String, dynamic> json) =>
@@ -278,5 +280,5 @@ class AudioFile extends Equatable {
 
   @override
   List<Object?> get props =>
-      [title, type, hash, children, mediaDownloadUrl, size];
+      [title, type, hash, children, mediaDownloadUrl, size, duration];
 }

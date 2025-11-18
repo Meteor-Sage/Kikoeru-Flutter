@@ -202,20 +202,20 @@ class FileIconUtils {
   }
 
   /// 判断是否是字幕文件
-static bool isLyricFile(String title) {
-  final lowerTitle = title.toLowerCase();
-  return lowerTitle.endsWith('.vtt') ||
-      lowerTitle.endsWith('.srt') ||
-      lowerTitle.endsWith('.lrc') ||
-      lowerTitle.endsWith('.txt') ||
-      lowerTitle.endsWith('.ass') ||
-      lowerTitle.endsWith('.ssa') ||
-      lowerTitle.endsWith('.sub') ||
-      lowerTitle.endsWith('.idx') ||
-      lowerTitle.endsWith('.sbv') ||
-      lowerTitle.endsWith('.dfxp') ||
-      lowerTitle.endsWith('.ttml');
-}
+  static bool isLyricFile(String title) {
+    final lowerTitle = title.toLowerCase();
+    return lowerTitle.endsWith('.vtt') ||
+        lowerTitle.endsWith('.srt') ||
+        lowerTitle.endsWith('.lrc') ||
+        lowerTitle.endsWith('.txt') ||
+        lowerTitle.endsWith('.ass') ||
+        lowerTitle.endsWith('.ssa') ||
+        lowerTitle.endsWith('.sub') ||
+        lowerTitle.endsWith('.idx') ||
+        lowerTitle.endsWith('.sbv') ||
+        lowerTitle.endsWith('.dfxp') ||
+        lowerTitle.endsWith('.ttml');
+  }
 
   /// 判断是否是图片文件（公开方法 - 用于 file_explorer_widget）
   static bool isImageFile(Map<String, dynamic> file) {
@@ -251,5 +251,25 @@ static bool isLyricFile(String title) {
     final title = (file['title'] ?? file['name'] ?? '').toLowerCase();
     final isAudio = type == 'audio' || _isAudioFile(title);
     return isAudio;
+  }
+
+  /// 根据文件名推断文件类型
+  /// 返回: 'audio', 'video', 'image', 'text', 'pdf', 'folder', 或 'file'
+  static String inferFileType(String fileName) {
+    final lowerTitle = fileName.toLowerCase();
+
+    if (_isAudioFile(lowerTitle)) {
+      return 'audio';
+    } else if (_isVideoFile(lowerTitle)) {
+      return 'video';
+    } else if (_isImageFile(lowerTitle)) {
+      return 'image';
+    } else if (_isTextFile(lowerTitle)) {
+      return 'text';
+    } else if (_isPdfFile(lowerTitle)) {
+      return 'pdf';
+    } else {
+      return 'file';
+    }
   }
 }

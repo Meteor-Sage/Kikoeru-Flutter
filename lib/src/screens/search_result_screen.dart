@@ -8,6 +8,7 @@ import '../widgets/works_grid_view.dart';
 import '../widgets/sort_dialog.dart';
 import '../widgets/pagination_bar.dart';
 import '../widgets/global_audio_player_wrapper.dart';
+import '../widgets/download_fab.dart';
 
 class SearchResultScreen extends ConsumerStatefulWidget {
   final String keyword;
@@ -108,6 +109,7 @@ class _SearchResultScreenState extends ConsumerState<SearchResultScreen> {
 
     return GlobalAudioPlayerWrapper(
       child: Scaffold(
+        floatingActionButton: const DownloadFab(),
         appBar: AppBar(
           scrolledUnderElevation: 0,
           elevation: 0,
