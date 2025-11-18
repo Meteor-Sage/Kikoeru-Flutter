@@ -701,7 +701,10 @@ class _OfflineFileExplorerWidgetState
     if (confirmed != true || !mounted) return;
 
     try {
-      await ref.read(lyricControllerProvider.notifier).loadLyricManually(file);
+      await ref.read(lyricControllerProvider.notifier).loadLyricManually(
+            file,
+            workId: widget.work.id,
+          );
       _showSnackBar('字幕加载成功：$title');
     } catch (e) {
       _showSnackBar('字幕加载失败：$e', isError: true);
@@ -1186,29 +1189,15 @@ class _OfflineFileExplorerWidgetState
                   ),
                 ),
                 // 操作按钮
-                if (type == 'audio')
-                  IconButton(
-                    onPressed: () {
-                      if (FileIconUtils.isVideoFile(item)) {
-                        _playVideoWithSystemPlayer(item);
-                      } else {
-                        _playAudioFile(item, parentPath);
-                      }
-                    },
-                    icon: Icon(FileIconUtils.isVideoFile(item)
-                        ? Icons.video_library
-                        : Icons.play_arrow),
-                    color: FileIconUtils.isVideoFile(item)
-                        ? Colors.blue
-                        : Colors.green,
-                    iconSize: 20,
-                  )
-                else if (FileIconUtils.isImageFile(item) ||
+                if (type == 'audio' ||
+                    FileIconUtils.isImageFile(item) ||
                     FileIconUtils.isTextFile(item) ||
-                    FileIconUtils.isPdfFile(item))
+                    FileIconUtils.isPdfFile(item) ||
+                    !isFolder)
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      // 字幕加载按钮（仅字幕文件显示）
                       if (FileIconUtils.isTextFile(item) &&
                           FileIconUtils.isLyricFile(originalTitle))
                         IconButton(
@@ -1218,21 +1207,6 @@ class _OfflineFileExplorerWidgetState
                           tooltip: '加载为字幕',
                           iconSize: 20,
                         ),
-                      IconButton(
-                        onPressed: () {
-                          if (FileIconUtils.isImageFile(item)) {
-                            _previewImageFile(item);
-                          } else if (FileIconUtils.isPdfFile(item)) {
-                            _previewPdfFile(item);
-                          } else {
-                            _previewTextFile(item);
-                          }
-                        },
-                        icon: const Icon(Icons.visibility),
-                        color: Colors.blue,
-                        tooltip: '预览',
-                        iconSize: 20,
-                      ),
                       // 删除按钮
                       IconButton(
                         onPressed: () => _deleteFile(item, parentPath),
@@ -1242,14 +1216,6 @@ class _OfflineFileExplorerWidgetState
                         iconSize: 20,
                       ),
                     ],
-                  )
-                else if (!isFolder)
-                  IconButton(
-                    onPressed: () => _deleteFile(item, parentPath),
-                    icon: const Icon(Icons.delete_outline),
-                    color: Colors.red.shade400,
-                    tooltip: '删除',
-                    iconSize: 20,
                   )
                 else if (isFolder && children != null)
                   Text(
@@ -1321,8 +1287,6 @@ class _OfflineFileExplorerWidgetState
     } else if (FileIconUtils.isImageFile(file)) {
       _previewImageFile(file);
     } else if (FileIconUtils.isPdfFile(file)) {
-      _previewTextFile(file);
-    } else if (FileIconUtils.isPdfFile(file)) {
       _previewPdfFile(file);
     } else if (FileIconUtils.isTextFile(file)) {
       _previewTextFile(file);
@@ -1352,14 +1316,6 @@ class _OfflineFileExplorerWidgetState
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              '此操作不可恢复！',
-              style: TextStyle(
-                color: Colors.red,
-                fontSize: 12,
               ),
             ),
           ],

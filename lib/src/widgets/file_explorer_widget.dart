@@ -737,8 +737,11 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
     );
 
     try {
-      // 调用手动加载字幕方法
-      await ref.read(lyricControllerProvider.notifier).loadLyricManually(file);
+      // 调用手动加载字幕方法，传入当前作品ID
+      await ref.read(lyricControllerProvider.notifier).loadLyricManually(
+            file,
+            workId: widget.work.id,
+          );
 
       if (mounted) {
         _showSnackBar(

@@ -521,7 +521,7 @@ class LyricController extends StateNotifier<LyricState> {
     }
   }
 
-  Future<void> loadLyricManually(dynamic lyricFile) async {
+  Future<void> loadLyricManually(dynamic lyricFile, {int? workId}) async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
@@ -550,11 +550,18 @@ class LyricController extends StateNotifier<LyricState> {
       String content;
 
       // 1. 先尝试从缓存加载（包括下载文件和缓存文件）
-      final workId = lyricFile['workId'] as int?;
+      // 优先级：传入的 workId > lyricFile 中的 workId > 当前播放音轨的 workId
+      int? effectiveWorkId = workId ?? lyricFile['workId'] as int?;
+      if (effectiveWorkId == null) {
+        final currentTrackAsync = ref.read(currentTrackProvider);
+        final currentTrack = currentTrackAsync.value;
+        effectiveWorkId = currentTrack?.workId;
+      }
+
       final fileName = lyricFile['title'] ?? lyricFile['name'];
-      final cachedContent = workId != null
+      final cachedContent = effectiveWorkId != null
           ? await CacheService.getCachedTextContent(
-              workId: workId,
+              workId: effectiveWorkId,
               hash: hash,
               fileName: fileName,
             )
@@ -579,9 +586,9 @@ class LyricController extends StateNotifier<LyricState> {
           content = response.data as String;
 
           // 3. 缓存歌词内容
-          if (workId != null) {
+          if (effectiveWorkId != null) {
             await CacheService.cacheTextContent(
-              workId: workId,
+              workId: effectiveWorkId,
               hash: hash,
               content: content,
             );
