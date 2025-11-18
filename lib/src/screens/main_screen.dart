@@ -213,7 +213,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                         const SizedBox(width: 6),
                         const Expanded(
                           child: Text(
-                            '离线模式：网络连接失败，仅可访问本地内容',
+                            '离线模式：网络连接失败，仅可访问下载内容',
                             style: TextStyle(
                               fontSize: 11,
                               color: Colors.white,
@@ -315,7 +315,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                       const SizedBox(width: 6),
                       const Expanded(
                         child: Text(
-                          '离线模式：网络连接失败，仅可访问本地内容',
+                          '离线模式：网络连接失败，仅可访问下载内容',
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.white,

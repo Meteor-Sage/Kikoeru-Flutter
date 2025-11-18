@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import '../providers/my_reviews_provider.dart';
+import '../providers/my_tabs_display_provider.dart';
 import '../widgets/enhanced_work_card.dart';
 import '../widgets/pagination_bar.dart';
 import '../utils/responsive_grid_helper.dart';
@@ -28,6 +29,61 @@ class _MyScreenState extends ConsumerState<MyScreen>
 
   @override
   bool get wantKeepAlive => true; // 保持状态不被销毁
+
+  List<_TabInfo> _buildTabList(MyTabsDisplaySettings settings) {
+    final tabs = <_TabInfo>[];
+
+    if (settings.showOnlineMarks) {
+      tabs.add(_TabInfo(
+        title: '在线标记',
+        index: 0,
+        widget: _buildOnlineBookmarksTab(),
+        showFab: true,
+        fabWidget: const DownloadFab(),
+      ));
+    }
+
+    if (settings.showPlaylists) {
+      tabs.add(_TabInfo(
+        title: '播放列表',
+        index: 1,
+        widget: const PlaylistsScreen(),
+      ));
+    }
+
+    // 已下载始终显示
+    tabs.add(_TabInfo(
+      title: '已下载',
+      index: 2,
+      widget: const LocalDownloadsScreen(),
+      showFab: true,
+      fabWidget: StreamBuilder<List<DownloadTask>>(
+        stream: DownloadService.instance.tasksStream,
+        builder: (context, snapshot) {
+          final activeCount = DownloadService.instance.activeDownloadCount;
+          return Badge(
+            isLabelVisible: activeCount > 0,
+            label: Text('$activeCount'),
+            child: FloatingActionButton(
+              onPressed: _navigateToDownloads,
+              tooltip: '下载任务',
+              child: const Icon(Icons.download),
+            ),
+          );
+        },
+      ),
+    ));
+
+    if (settings.showSubtitleLibrary) {
+      tabs.add(_TabInfo(
+        title: '字幕库',
+        index: 3,
+        widget: const SubtitleLibraryScreen(),
+      ));
+    }
+
+    return tabs;
+  }
 
   @override
   void initState() {
@@ -183,57 +239,44 @@ class _MyScreenState extends ConsumerState<MyScreen>
   Widget build(BuildContext context) {
     super.build(context); // 必须调用以保持状态
 
+    final tabsSettings = ref.watch(myTabsDisplayProvider);
+    final tabs = _buildTabList(tabsSettings);
+
+    // 如果标签数量变化，需要重新创建 TabController
+    if (_tabController.length != tabs.length) {
+      final oldIndex = _tabController.index;
+      _tabController.dispose();
+      _tabController = TabController(length: tabs.length, vsync: this);
+      // 尝试恢复之前的位置，但不超出新的范围
+      if (oldIndex < tabs.length) {
+        _tabController.index = oldIndex;
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 0,
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: '在线标记'),
-            Tab(text: '播放列表'),
-            Tab(text: '本地下载'),
-            Tab(text: '字幕库'),
-          ],
+          tabs: tabs.map((tab) => Tab(text: tab.title)).toList(),
         ),
       ),
       floatingActionButton: AnimatedBuilder(
         animation: _tabController,
         builder: (context, child) {
-          // 在线标记页（索引0）：有下载任务时显示
-          if (_tabController.index == 0) {
-            return const DownloadFab();
+          final currentIndex = _tabController.index;
+          if (currentIndex >= 0 && currentIndex < tabs.length) {
+            final currentTab = tabs[currentIndex];
+            if (currentTab.showFab && currentTab.fabWidget != null) {
+              return currentTab.fabWidget!;
+            }
           }
-          // 本地下载页（索引2）：始终显示
-          if (_tabController.index == 2) {
-            return StreamBuilder<List<DownloadTask>>(
-              stream: DownloadService.instance.tasksStream,
-              builder: (context, snapshot) {
-                final activeCount =
-                    DownloadService.instance.activeDownloadCount;
-                return Badge(
-                  isLabelVisible: activeCount > 0,
-                  label: Text('$activeCount'),
-                  child: FloatingActionButton(
-                    onPressed: _navigateToDownloads,
-                    tooltip: '下载任务',
-                    child: const Icon(Icons.download),
-                  ),
-                );
-              },
-            );
-          }
-          // 其他标签页：不显示
           return const SizedBox.shrink();
         },
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          _buildOnlineBookmarksTab(),
-          const PlaylistsScreen(),
-          const LocalDownloadsScreen(),
-          const SubtitleLibraryScreen(),
-        ],
+        children: tabs.map((tab) => tab.widget).toList(),
       ),
     );
   }
@@ -496,4 +539,21 @@ class _MyScreenState extends ConsumerState<MyScreen>
       ),
     );
   }
+}
+
+// Helper class to organize tab information
+class _TabInfo {
+  final String title;
+  final int index;
+  final Widget widget;
+  final bool showFab;
+  final Widget? fabWidget;
+
+  const _TabInfo({
+    required this.title,
+    required this.index,
+    required this.widget,
+    this.showFab = false,
+    this.fabWidget,
+  });
 }

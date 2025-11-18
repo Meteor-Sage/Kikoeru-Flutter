@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'player_buttons_settings_screen.dart';
 import 'work_detail_display_settings_screen.dart';
 import 'work_card_display_settings_screen.dart';
+import 'my_tabs_display_settings_screen.dart';
 import '../widgets/scrollable_appbar.dart';
 
 class UiSettingsScreen extends StatelessWidget {
@@ -65,6 +66,22 @@ class UiSettingsScreen extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (context) =>
                             const WorkCardDisplaySettingsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                Divider(color: Theme.of(context).colorScheme.outlineVariant),
+                ListTile(
+                  leading: Icon(Icons.tab,
+                      color: Theme.of(context).colorScheme.primary),
+                  title: const Text('"我的"界面显示'),
+                  subtitle: const Text('控制"我的"界面中标签页的显示'),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            const MyTabsDisplaySettingsScreen(),
                       ),
                     );
                   },

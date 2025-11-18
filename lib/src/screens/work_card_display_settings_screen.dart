@@ -20,42 +20,68 @@ class WorkCardDisplaySettingsScreen extends ConsumerWidget {
         ),
       ),
       body: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
-          SwitchListTile(
-            title: const Text('评分信息'),
-            subtitle: const Text('显示作品评分和评价人数'),
-            value: settings.showRating,
-            onChanged: (_) => notifier.toggleRating(),
+          Card(
+            child: Column(
+              children: [
+                SwitchListTile(
+                  secondary: Icon(
+                    Icons.star,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  title: const Text('评分信息'),
+                  subtitle: const Text('显示作品评分和评价人数'),
+                  value: settings.showRating,
+                  onChanged: (_) => notifier.toggleRating(),
+                ),
+                Divider(color: Theme.of(context).colorScheme.outlineVariant),
+                SwitchListTile(
+                  secondary: Icon(
+                    Icons.attach_money,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  title: const Text('售价信息'),
+                  subtitle: const Text('显示作品价格'),
+                  value: settings.showPrice,
+                  onChanged: (_) => notifier.togglePrice(),
+                ),
+                Divider(color: Theme.of(context).colorScheme.outlineVariant),
+                SwitchListTile(
+                  secondary: Icon(
+                    Icons.shopping_cart,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  title: const Text('售出信息'),
+                  subtitle: const Text('显示作品售出数量'),
+                  value: settings.showSales,
+                  onChanged: (_) => notifier.toggleSales(),
+                ),
+                Divider(color: Theme.of(context).colorScheme.outlineVariant),
+                SwitchListTile(
+                  secondary: Icon(
+                    Icons.calendar_today,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  title: const Text('发布日期'),
+                  subtitle: const Text('显示作品发布日期'),
+                  value: settings.showReleaseDate,
+                  onChanged: (_) => notifier.toggleReleaseDate(),
+                ),
+                Divider(color: Theme.of(context).colorScheme.outlineVariant),
+                SwitchListTile(
+                  secondary: Icon(
+                    Icons.group,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  title: const Text('社团信息'),
+                  subtitle: const Text('显示作品所属社团'),
+                  value: settings.showCircle,
+                  onChanged: (_) => notifier.toggleCircle(),
+                ),
+              ],
+            ),
           ),
-          Divider(color: Theme.of(context).colorScheme.outlineVariant),
-          SwitchListTile(
-            title: const Text('售价信息'),
-            subtitle: const Text('显示作品价格'),
-            value: settings.showPrice,
-            onChanged: (_) => notifier.togglePrice(),
-          ),
-          Divider(color: Theme.of(context).colorScheme.outlineVariant),
-          SwitchListTile(
-            title: const Text('售出信息'),
-            subtitle: const Text('显示作品售出数量'),
-            value: settings.showSales,
-            onChanged: (_) => notifier.toggleSales(),
-          ),
-          Divider(color: Theme.of(context).colorScheme.outlineVariant),
-          SwitchListTile(
-            title: const Text('发布日期'),
-            subtitle: const Text('显示作品发布日期'),
-            value: settings.showReleaseDate,
-            onChanged: (_) => notifier.toggleReleaseDate(),
-          ),
-          Divider(color: Theme.of(context).colorScheme.outlineVariant),
-          SwitchListTile(
-            title: const Text('社团信息'),
-            subtitle: const Text('显示作品所属社团'),
-            value: settings.showCircle,
-            onChanged: (_) => notifier.toggleCircle(),
-          ),
-          const SizedBox(height: 16),
         ],
       ),
     );
