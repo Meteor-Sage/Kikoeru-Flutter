@@ -16,6 +16,7 @@ import '../services/download_service.dart';
 import '../services/cache_service.dart';
 import '../services/translation_service.dart';
 import '../utils/file_icon_utils.dart';
+import '../utils/snackbar_util.dart';
 import 'responsive_dialog.dart';
 import 'image_gallery_screen.dart';
 import 'text_preview_screen.dart';
@@ -403,8 +404,51 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
 
   void _showSnackBar(SnackBar snackBar) {
     if (!mounted) return;
-    final messenger = _scaffoldMessenger ?? ScaffoldMessenger.maybeOf(context);
-    messenger?.showSnackBar(snackBar);
+    
+    // 提取 SnackBar 的内容和类型
+    final content = snackBar.content;
+    String message = '';
+    
+    if (content is Text) {
+      message = content.data ?? '';
+    } else if (content is Row) {
+      // 处理包含 Row 的 SnackBar
+      final children = content.children;
+      for (final child in children) {
+        if (child is Text) {
+          message = child.data ?? '';
+          break;
+        } else if (child is Expanded) {
+          final expandedChild = child.child;
+          if (expandedChild is Text) {
+            message = expandedChild.data ?? '';
+            break;
+          }
+        }
+      }
+    }
+    
+    if (message.isEmpty) {
+      // 如果无法提取消息，使用原始方法
+      final messenger = _scaffoldMessenger ?? ScaffoldMessenger.maybeOf(context);
+      messenger?.showSnackBar(snackBar);
+      return;
+    }
+    
+    // 根据背景色判断类型
+    final backgroundColor = snackBar.backgroundColor;
+    final duration = snackBar.duration ?? const Duration(seconds: 2);
+    
+    if (backgroundColor == Colors.red) {
+      SnackBarUtil.showError(context, message, duration: duration);
+    } else if (backgroundColor == Colors.green) {
+      SnackBarUtil.showSuccess(context, message, duration: duration);
+    } else if (backgroundColor == Colors.orange) {
+      SnackBarUtil.showWarning(context, message, duration: duration);
+    } else {
+      // 默认使用 info
+      SnackBarUtil.showInfo(context, message, duration: duration);
+    }
   }
 
   void _playAudioFile(dynamic audioFile, String parentPath) async {
