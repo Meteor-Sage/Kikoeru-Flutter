@@ -301,15 +301,34 @@ class _MyScreenState extends ConsumerState<MyScreen>
           child: state.error != null
               ? Center(
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('加载失败: ${state.error}',
-                          style: const TextStyle(color: Colors.redAccent)),
+                      Icon(
+                        Icons.error_outline,
+                        size: 64,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        '加载失败',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
                       const SizedBox(height: 8),
-                      ElevatedButton(
+                      Text(
+                        state.error!,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
                         onPressed: () =>
                             ref.read(myReviewsProvider.notifier).refresh(),
-                        child: const Text('重试'),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('重试'),
                       ),
                     ],
                   ),

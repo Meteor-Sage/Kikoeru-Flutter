@@ -359,23 +359,30 @@ class _SearchResultScreenState extends ConsumerState<SearchResultScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error, size: 64, color: Colors.red),
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Theme.of(context).colorScheme.error,
+            ),
             const SizedBox(height: 16),
             Text(
               '搜索失败',
-              style: Theme.of(context).textTheme.headlineSmall,
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
             Text(
               searchState.error!,
-              style: const TextStyle(color: Colors.grey),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
               onPressed: () =>
                   ref.read(searchResultProvider.notifier).refresh(),
-              child: const Text('重试'),
+              icon: const Icon(Icons.refresh),
+              label: const Text('重试'),
             ),
           ],
         ),

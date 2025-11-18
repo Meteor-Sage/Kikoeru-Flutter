@@ -231,16 +231,6 @@ class ThemeSettingsScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: Text(
-                    '提示：系统动态取色功能需要 Android 12 或更高版本',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ),
               ],
             ),
           ),

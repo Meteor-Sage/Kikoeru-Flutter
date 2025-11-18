@@ -365,60 +365,43 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
   }
 
   Widget _buildBody(WorksState worksState) {
-    if (worksState.error != null) {
+    // 错误状态 - 优先处理，无论是否有数据
+    if (worksState.error != null && worksState.works.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error, size: 64, color: Colors.red),
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Theme.of(context).colorScheme.error,
+            ),
             const SizedBox(height: 16),
             Text(
               '加载失败',
-              style: Theme.of(context).textTheme.headlineSmall,
+              style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
             Text(
               worksState.error!,
-              style: const TextStyle(color: Colors.grey),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
-            ElevatedButton(
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
               onPressed: () => ref.read(worksProvider.notifier).refresh(),
-              child: const Text('重试'),
+              icon: const Icon(Icons.refresh),
+              label: const Text('重试'),
             ),
           ],
         ),
       );
     }
 
-    if (worksState.works.isEmpty && worksState.isLoading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('加载中...'),
-          ],
-        ),
-      );
-    }
 
-    if (worksState.works.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.audiotrack, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('暂无作品', style: TextStyle(fontSize: 18)),
-            SizedBox(height: 8),
-            Text('请检查网络连接或稍后重试', style: TextStyle(color: Colors.grey)),
-          ],
-        ),
-      );
-    }
+
 
     return RefreshIndicator(
       onRefresh: () => ref.read(worksProvider.notifier).refresh(),

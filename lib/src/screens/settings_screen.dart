@@ -9,6 +9,7 @@ import 'ui_settings_screen.dart';
 import 'preferences_screen.dart';
 import 'about_screen.dart';
 import 'permissions_screen.dart';
+import 'privacy_mode_settings_screen.dart';
 import '../providers/settings_provider.dart';
 import '../providers/update_provider.dart';
 import '../services/cache_service.dart';
@@ -162,6 +163,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildAccountCard(BuildContext context) {
+    final privacySettings = ref.watch(privacyModeSettingsProvider);
+
     return Card(
       child: Column(
         children: [
@@ -175,6 +178,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => const AccountManagementScreen(),
+                ),
+              );
+            },
+          ),
+          Divider(color: Theme.of(context).colorScheme.outlineVariant),
+          ListTile(
+            leading: Icon(Icons.privacy_tip_outlined,
+                color: Theme.of(context).colorScheme.primary),
+            title: const Text('防社死模式'),
+            subtitle: Text(
+              privacySettings.enabled ? '已启用 - 播放信息已隐藏' : '未启用',
+            ),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const PrivacyModeSettingsScreen(),
                 ),
               );
             },
