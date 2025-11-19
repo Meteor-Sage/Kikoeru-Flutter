@@ -71,6 +71,7 @@ class _EnhancedWorkCardState extends ConsumerState<EnhancedWorkCard> {
       workId: widget.work.id,
       currentProgress: _progress,
       currentRating: _rating,
+      workTitle: widget.work.title,
       onChanged: (newProgress, newRating) {
         // 更新本地状态
         if (mounted) {

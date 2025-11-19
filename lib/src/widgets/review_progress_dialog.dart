@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import '../providers/my_reviews_provider.dart';
+import 'add_to_playlist_dialog.dart';
 import 'responsive_dialog.dart';
 
 /// 通用的收藏状态编辑对话框组件
@@ -21,12 +22,16 @@ class ReviewProgressDialog {
   /// [currentRating] - 当前的评分值(1-5)
   /// [title] - 对话框标题，默认为"标记作品"
   /// [showLoading] - 是否显示加载指示器（用于更新状态时）
+  /// [workId] - 作品ID，用于添加到播放列表
+  /// [workTitle] - 作品标题，用于添加到播放列表
   static Future<Map<String, dynamic>?> show({
     required BuildContext context,
     String? currentProgress,
     int? currentRating,
     String title = '标记作品',
     bool showLoading = false,
+    int? workId,
+    String? workTitle,
   }) async {
     final filters = [
       MyReviewFilter.marked,
@@ -98,6 +103,18 @@ class ReviewProgressDialog {
                               );
                             }),
                             const Spacer(),
+                            if (workId != null && workTitle != null)
+                              IconButton(
+                                icon: const Icon(Icons.playlist_add),
+                                onPressed: () async {
+                                  await AddToPlaylistDialog.show(
+                                    context: context,
+                                    workId: workId,
+                                    workTitle: workTitle,
+                                  );
+                                },
+                                tooltip: '添加到播放列表',
+                              ),
                             if (showLoading)
                               const Padding(
                                 padding: EdgeInsets.only(right: 8),
@@ -319,6 +336,18 @@ class ReviewProgressDialog {
                             );
                           }),
                           const Spacer(),
+                          if (workId != null && workTitle != null)
+                            IconButton(
+                              icon: const Icon(Icons.playlist_add),
+                              onPressed: () async {
+                                await AddToPlaylistDialog.show(
+                                  context: context,
+                                  workId: workId,
+                                  workTitle: workTitle,
+                                );
+                              },
+                              tooltip: '添加到播放列表',
+                            ),
                           if (showLoading)
                             const SizedBox(
                               height: 20,

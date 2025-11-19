@@ -339,7 +339,8 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
                     workId: track.workId,
                     currentProgress: _currentProgress,
                     onMarkPressed: track.workId != null
-                        ? () => _showMarkDialog(context, track.workId!)
+                        ? () =>
+                            _showMarkDialog(context, track.workId!, track.title)
                         : null,
                     onDetailPressed: track.workId != null
                         ? () => _navigateToWorkDetail(context, track.workId!)
@@ -503,7 +504,8 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
                           workId: track.workId,
                           currentProgress: _currentProgress,
                           onMarkPressed: track.workId != null
-                              ? () => _showMarkDialog(context, track.workId!)
+                              ? () => _showMarkDialog(
+                                  context, track.workId!, track.title)
                               : null,
                           onDetailPressed: track.workId != null
                               ? () =>
@@ -666,13 +668,15 @@ class _AudioPlayerScreenState extends ConsumerState<AudioPlayerScreen> {
     );
   }
 
-  Future<void> _showMarkDialog(BuildContext context, int workId) async {
+  Future<void> _showMarkDialog(
+      BuildContext context, int workId, String? workTitle) async {
     final manager = WorkBookmarkManager(ref: ref, context: context);
 
     await manager.showMarkDialog(
       workId: workId,
       currentProgress: _currentProgress,
       currentRating: _currentRating,
+      workTitle: workTitle,
       onChanged: (newProgress, newRating) {
         if (mounted) {
           setState(() {

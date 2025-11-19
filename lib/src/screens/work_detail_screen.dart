@@ -487,6 +487,7 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
       workId: widget.work.id,
       currentProgress: _currentProgress,
       currentRating: _currentRating,
+      workTitle: widget.work.title,
       onChanged: (newProgress, newRating) {
         // 更新本地状态
         if (mounted) {

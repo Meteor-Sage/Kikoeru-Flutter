@@ -24,12 +24,15 @@ class WorkBookmarkManager {
     required String? currentProgress,
     required int? currentRating,
     required Function(String? newProgress, int? newRating) onChanged,
+    String? workTitle,
   }) async {
     final result = await ReviewProgressDialog.show(
       context: context,
       currentProgress: currentProgress,
       currentRating: currentRating,
       title: '标记作品',
+      workId: workId,
+      workTitle: workTitle,
     );
 
     if (result != null && context.mounted) {
