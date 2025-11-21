@@ -20,7 +20,8 @@ class FloatingLyricService {
   }
 
   /// 检查是否支持悬浮窗
-  bool get isSupported => Platform.isAndroid || Platform.isWindows;
+  bool get isSupported =>
+      Platform.isAndroid || Platform.isWindows || Platform.isMacOS;
 
   /// 显示悬浮窗
   /// [text] 要显示的文本内容
@@ -67,7 +68,7 @@ class FloatingLyricService {
         await controller.show();
         return true;
       } catch (e) {
-        print('[FloatingLyric] Windows显示悬浮窗失败: $e');
+        print('[FloatingLyric] Desktop显示悬浮窗失败: $e');
         return false;
       }
     }
@@ -153,7 +154,7 @@ class FloatingLyricService {
 
   /// 检查是否有悬浮窗权限
   Future<bool> hasPermission() async {
-    if (Platform.isWindows) return true;
+    if (Platform.isWindows || Platform.isMacOS) return true;
     if (!isSupported) {
       return false;
     }
@@ -169,7 +170,7 @@ class FloatingLyricService {
 
   /// 请求悬浮窗权限
   Future<bool> requestPermission() async {
-    if (Platform.isWindows) return true;
+    if (Platform.isWindows || Platform.isMacOS) return true;
     if (!isSupported) {
       return false;
     }
