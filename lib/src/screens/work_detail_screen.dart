@@ -19,7 +19,6 @@ import '../widgets/work_bookmark_manager.dart';
 import '../widgets/review_progress_dialog.dart';
 import '../widgets/rating_detail_popup.dart';
 import '../services/translation_service.dart';
-import '../utils/snackbar_util.dart';
 import '../widgets/download_fab.dart';
 import '../providers/work_detail_display_provider.dart';
 

@@ -66,7 +66,7 @@ class _LocalDownloadsScreenState extends ConsumerState<LocalDownloadsScreen>
       
       // 根据背景色判断类型
       final backgroundColor = snackBar.backgroundColor;
-      final duration = snackBar.duration ?? const Duration(seconds: 2);
+      final duration = snackBar.duration;
       
       if (backgroundColor == Colors.red || backgroundColor == Theme.of(context).colorScheme.error) {
         SnackBarUtil.showError(context, message, duration: duration);
