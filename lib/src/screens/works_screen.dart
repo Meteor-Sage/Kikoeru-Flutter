@@ -151,6 +151,37 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
     }
   }
 
+  void _handleSwipe(DragEndDetails details) {
+    if (details.primaryVelocity == null) return;
+
+    final velocity = details.primaryVelocity!;
+    final worksState = ref.read(worksProvider);
+    final notifier = ref.read(worksProvider.notifier);
+
+    // Sensitivity threshold
+    if (velocity.abs() < 500) return;
+
+    if (velocity < 0) {
+      // Swipe Left (Next Tab)
+      if (worksState.displayMode == DisplayMode.all) {
+        notifier.setDisplayMode(DisplayMode.popular);
+        _scrollToTop();
+      } else if (worksState.displayMode == DisplayMode.popular) {
+        notifier.setDisplayMode(DisplayMode.recommended);
+        _scrollToTop();
+      }
+    } else {
+      // Swipe Right (Previous Tab)
+      if (worksState.displayMode == DisplayMode.recommended) {
+        notifier.setDisplayMode(DisplayMode.popular);
+        _scrollToTop();
+      } else if (worksState.displayMode == DisplayMode.popular) {
+        notifier.setDisplayMode(DisplayMode.all);
+        _scrollToTop();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // 必须调用以保持状态
@@ -236,7 +267,10 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
           ),
         ),
       ),
-      body: _buildBody(worksState),
+      body: GestureDetector(
+        onHorizontalDragEnd: _handleSwipe,
+        child: _buildBody(worksState),
+      ),
     );
   }
 
