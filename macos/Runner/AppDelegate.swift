@@ -162,7 +162,9 @@ class FloatingLyricWindow: NSPanel {
         let font = lyricView.font ?? NSFont.systemFont(ofSize: _fontSize)
         let size = (text as NSString).size(withAttributes: [.font: font])
         
-        let width = size.width + _paddingHorizontal * 2
+        // Add a small buffer to width to prevent clipping of the last character
+        let widthBuffer: CGFloat = 10.0
+        let width = size.width + _paddingHorizontal * 2 + widthBuffer
         let height = size.height + _paddingVertical * 2
         
         // Keep current position
@@ -171,7 +173,7 @@ class FloatingLyricWindow: NSPanel {
         
         self.setFrame(newFrame, display: true)
         
-        lyricView.frame = NSRect(x: _paddingHorizontal, y: _paddingVertical, width: size.width, height: size.height)
+        lyricView.frame = NSRect(x: _paddingHorizontal, y: _paddingVertical, width: size.width + widthBuffer, height: size.height)
         backgroundView.frame = NSRect(x: 0, y: 0, width: width, height: height)
     }
     
