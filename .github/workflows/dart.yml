@@ -1,0 +1,45 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: Dart
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  android:
+    name: Android Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          
+      - name: Get Dependencies
+        run: flutter pub get
+        
+      - name: Build APK
+        run: flutter build apk --release
+        
+      - name: Rename APK
+        run: mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/KikoFlu-Android.apk
+        
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: build/app/outputs/flutter-apk/KikoFlu-Android.apk
