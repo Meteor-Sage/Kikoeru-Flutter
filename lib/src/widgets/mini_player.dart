@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/audio_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/lyric_provider.dart';
+import '../providers/player_lyric_style_provider.dart';
 import '../screens/audio_player_screen.dart';
 import 'volume_control.dart';
 
@@ -186,6 +187,8 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                                   ref.watch(currentLyricTextProvider);
                               final lyricState =
                                   ref.watch(lyricControllerProvider);
+                              final lyricSettings =
+                                  ref.watch(playerLyricSettingsProvider);
                               final hasLyrics = lyricState.lyrics.isNotEmpty;
 
                               // Only show when playing and has lyrics
@@ -209,8 +212,8 @@ class _MiniPlayerState extends ConsumerState<MiniPlayer> {
                                         color: Theme.of(context)
                                             .colorScheme
                                             .primary,
-                                        fontSize: 11,
-                                        height: 1.0,
+                                        fontSize: lyricSettings.miniFontSize,
+                                        height: lyricSettings.miniLineHeight,
                                         fontWeight: FontWeight.w600,
                                       ),
                                   maxLines: 1,

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/lyric.dart';
 import '../../providers/audio_provider.dart';
 import '../../providers/lyric_provider.dart';
+import '../../providers/player_lyric_style_provider.dart';
 
 /// 小歌词显示组件（在封面下方显示当前歌词）
 class LyricDisplay extends ConsumerWidget {
@@ -15,6 +16,7 @@ class LyricDisplay extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final currentLyric = ref.watch(currentLyricTextProvider);
     final lyricState = ref.watch(lyricControllerProvider);
+    final lyricSettings = ref.watch(playerLyricSettingsProvider);
 
     // 如果有歌词，显示歌词
     if (lyricState.lyrics.isNotEmpty) {
@@ -31,8 +33,8 @@ class LyricDisplay extends ConsumerWidget {
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.primary,
                     fontWeight: FontWeight.bold,
-                    height: 1.2,
-                    fontSize: 14,
+                    height: lyricSettings.smallLineHeight,
+                    fontSize: lyricSettings.smallFontSize,
                   ),
               textAlign: TextAlign.center,
               maxLines: 3,
@@ -109,10 +111,13 @@ class _FullLyricDisplayState extends ConsumerState<FullLyricDisplay> {
 
   /// 估算单个歌词 item 的高度
   double _estimateItemHeight(String text, BuildContext context, bool isActive) {
+    final lyricSettings = ref.read(playerLyricSettingsProvider);
     const double verticalPadding = 24.0;
     const double verticalMargin = 8.0;
-    const double lineHeight = 1.5;
-    final double fontSize = isActive ? 18.0 : 16.0;
+    final double lineHeight = lyricSettings.fullLineHeight;
+    final double fontSize = isActive
+        ? lyricSettings.fullActiveFontSize
+        : lyricSettings.fullInactiveFontSize;
 
     final screenWidth = MediaQuery.of(context).size.width;
     final double lyricAreaWidth;
@@ -225,6 +230,7 @@ class _FullLyricDisplayState extends ConsumerState<FullLyricDisplay> {
   Widget build(BuildContext context) {
     final lyricState = ref.watch(lyricControllerProvider);
     final position = ref.watch(positionProvider);
+    final lyricSettings = ref.watch(playerLyricSettingsProvider);
 
     return position.when(
       data: (pos) {
@@ -286,8 +292,10 @@ class _FullLyricDisplayState extends ConsumerState<FullLyricDisplay> {
                                     .onSurfaceVariant,
                         fontWeight:
                             isActive ? FontWeight.bold : FontWeight.normal,
-                        fontSize: isActive ? 18 : 16,
-                        height: 1.5,
+                        fontSize: isActive
+                            ? lyricSettings.fullActiveFontSize
+                            : lyricSettings.fullInactiveFontSize,
+                        height: lyricSettings.fullLineHeight,
                       ),
                   textAlign: TextAlign.center,
                 ),

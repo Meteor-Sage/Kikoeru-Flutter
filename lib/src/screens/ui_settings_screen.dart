@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'player_buttons_settings_screen.dart';
+import 'player_lyric_style_screen.dart';
 import 'work_detail_display_settings_screen.dart';
 import 'work_card_display_settings_screen.dart';
 import 'my_tabs_display_settings_screen.dart';
@@ -38,6 +39,21 @@ class UiSettingsScreen extends ConsumerWidget {
                       MaterialPageRoute(
                         builder: (context) =>
                             const PlayerButtonsSettingsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                Divider(color: Theme.of(context).colorScheme.outlineVariant),
+                ListTile(
+                  leading: Icon(Icons.lyrics,
+                      color: Theme.of(context).colorScheme.primary),
+                  title: const Text('播放器歌词样式'),
+                  subtitle: const Text('自定义迷你播放器和全屏播放器的歌词样式'),
+                  trailing: const Icon(Icons.arrow_forward_ios),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const PlayerLyricStyleScreen(),
                       ),
                     );
                   },
