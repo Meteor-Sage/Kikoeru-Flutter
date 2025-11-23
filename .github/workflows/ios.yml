@@ -1,0 +1,61 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [ "main" ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  ios:
+    name: iOS Build (Unsigned)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          
+      - name: Get Dependencies
+        run: flutter pub get
+        
+      - name: Install Pods
+        run: |
+          cd ios
+          pod install
+          
+      - name: Build iOS Archive (Unsigned)
+        run: |
+          cd ios
+          xcodebuild \
+            -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath build/Runner.xcarchive \
+            -arch arm64 \
+            archive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_ENTITLEMENTS="" \
+            PROVISIONING_PROFILE="" \
+            ONLY_ACTIVE_ARCH=NO
+            
+      - name: Package IPA
+        run: |
+          mkdir -p build/Payload
+          cp -r ios/build/Runner.xcarchive/Products/Applications/Runner.app build/Payload/
+          cd build
+          zip -qr KikoFlu-ios-unsigned.ipa Payload
+          
+      - name: Upload iOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-unsigned-release
+          path: build/KikoFlu-ios-unsigned.ipa

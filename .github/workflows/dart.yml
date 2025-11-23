@@ -1,50 +1,17 @@
-name: Build
+name: Android Build
 
 on:
   push:
     branches: [ "main" ]
+    tags:
+      - 'v*'
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
-  windows:
-    name: Windows Build
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          
-      - name: Get Dependencies
-        run: flutter pub get
-        
-      - name: Build Windows Release
-        run: flutter build windows --release
-        
-      - name: Create Zip
-        uses: thedoctor0/zip-release@0.7.6
-        with:
-          type: 'zip'
-          filename: 'KikoFlu-Windows.zip'
-          directory: 'build/windows/x64/runner/Release'
-          
-      - name: Create MSIX
-        run: flutter pub run msix:create
-        
-      - name: Upload Windows Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-release
-          path: |
-            build/windows/x64/runner/Release/KikoFlu-Windows.zip
-            build/windows/**/*.msix
-
   android:
     name: Android Build
-    needs: windows
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
