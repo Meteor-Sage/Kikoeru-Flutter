@@ -91,9 +91,11 @@ class FloatingLyricService {
     }
 
     try {
-      final result = await _platform.invokeMethod('show', {
-        'text': text,
-      });
+      final Map<String, dynamic> args = {'text': text};
+      if (style != null) {
+        args.addAll(style);
+      }
+      final result = await _platform.invokeMethod('show', args);
       print('[FloatingLyric] 显示悬浮窗: $text');
       return result == true;
     } catch (e) {

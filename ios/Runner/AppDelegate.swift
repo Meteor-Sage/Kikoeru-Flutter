@@ -90,7 +90,7 @@ class FloatingLyricManager: NSObject, AVPictureInPictureControllerDelegate {
         case "show":
             let args = call.arguments as? [String: Any]
             let text = args?["text"] as? String ?? "Lyrics"
-            show(text: text)
+            show(text: text, args: args)
             result(true)
         case "hide":
             hide()
@@ -99,6 +99,10 @@ class FloatingLyricManager: NSObject, AVPictureInPictureControllerDelegate {
             let args = call.arguments as? [String: Any]
             let text = args?["text"] as? String ?? ""
             updateText(text)
+            result(true)
+        case "updateStyle":
+            let args = call.arguments as? [String: Any]
+            updateStyle(args: args)
             result(true)
         case "hasPermission":
             result(true)
@@ -109,15 +113,17 @@ class FloatingLyricManager: NSObject, AVPictureInPictureControllerDelegate {
         }
     }
     
-    private func show(text: String) {
+    private func show(text: String, args: [String: Any]?) {
         if pipController?.isPictureInPictureActive == true {
             updateText(text)
+            updateStyle(args: args)
             return
         }
         
         player?.play()
         pipController?.startPictureInPicture()
         prepareLyricView(text: text)
+        updateStyle(args: args)
     }
     
     private func hide() {
@@ -132,19 +138,51 @@ class FloatingLyricManager: NSObject, AVPictureInPictureControllerDelegate {
         }
     }
     
+    private func updateStyle(args: [String: Any]?) {
+        guard let args = args else { return }
+        
+        DispatchQueue.main.async {
+            guard let view = self.lyricView else { return }
+            
+            if let fontSize = args["fontSize"] as? Double {
+                view.font = UIFont.systemFont(ofSize: CGFloat(fontSize), weight: .medium)
+            }
+            
+            if let textColorInt = args["textColor"] as? Int {
+                view.textColor = self.colorFromInt(textColorInt)
+            }
+            
+            if let backgroundColorInt = args["backgroundColor"] as? Int {
+                view.backgroundColor = self.colorFromInt(backgroundColorInt)
+            }
+            
+            if let cornerRadius = args["cornerRadius"] as? Double {
+                view.layer.cornerRadius = CGFloat(cornerRadius)
+            }
+        }
+    }
+    
+    private func colorFromInt(_ argb: Int) -> UIColor {
+        let a = CGFloat((argb >> 24) & 0xFF) / 255.0
+        let r = CGFloat((argb >> 16) & 0xFF) / 255.0
+        let g = CGFloat((argb >> 8) & 0xFF) / 255.0
+        let b = CGFloat(argb & 0xFF) / 255.0
+        return UIColor(red: r, green: g, blue: b, alpha: a)
+    }
+    
     private func prepareLyricView(text: String) {
         if lyricView == nil {
             lyricView = UILabel()
             lyricView?.textColor = .white
-            lyricView?.backgroundColor = UIColor(white: 0.0, alpha: 0.3) // 半透明黑色背景
+            lyricView?.backgroundColor = UIColor(white: 0.0, alpha: 0.3) // Default style
             lyricView?.font = UIFont.systemFont(ofSize: 20, weight: .medium)
             lyricView?.textAlignment = .center
             lyricView?.numberOfLines = 0
             lyricView?.layer.cornerRadius = 8
             lyricView?.clipsToBounds = true
-            // 添加文字阴影以提高可读性
-            lyricView?.shadowColor = .black
-            lyricView?.shadowOffset = CGSize(width: 1, height: 1)
+            // Remove shadow
+            lyricView?.shadowColor = .clear
+            lyricView?.shadowOffset = .zero
         }
         lyricView?.text = text
     }
