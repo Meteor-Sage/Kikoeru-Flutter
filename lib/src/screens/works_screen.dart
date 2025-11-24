@@ -9,6 +9,7 @@ import '../providers/works_provider.dart';
 import '../widgets/enhanced_work_card.dart';
 import '../widgets/sort_dialog.dart';
 import '../widgets/pagination_bar.dart';
+import '../widgets/overscroll_next_page_detector.dart';
 import '../utils/responsive_grid_helper.dart';
 import '../utils/snackbar_util.dart';
 import '../widgets/scrollable_appbar.dart';
@@ -525,7 +526,7 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
     final spacing = isLandscape ? 24.0 : 8.0;
     final padding = isLandscape ? 24.0 : 8.0;
 
-    return CustomScrollView(
+    Widget scrollView = CustomScrollView(
       controller: _scrollController,
       cacheExtent: 500, // 增加缓存范围，预加载更多内容
       physics: const AlwaysScrollableScrollPhysics(
@@ -614,12 +615,29 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
           ),
       ],
     );
+
+    if (isAllMode) {
+      return OverscrollNextPageDetector(
+        onNextPage: () async {
+          await ref.read(worksProvider.notifier).nextPage();
+          // 等待一帧后滚动到顶部，确保内容已加载
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollToTop();
+          });
+        },
+        hasNextPage: worksState.hasMore,
+        isLoading: worksState.isLoading,
+        child: scrollView,
+      );
+    }
+
+    return scrollView;
   }
 
   Widget _buildListView(WorksState worksState) {
     final isAllMode = worksState.displayMode == DisplayMode.all;
 
-    return CustomScrollView(
+    Widget scrollView = CustomScrollView(
       controller: _scrollController,
       cacheExtent: 500, // 增加缓存范围，预加载更多内容
       physics: const AlwaysScrollableScrollPhysics(
@@ -715,6 +733,23 @@ class _WorksScreenState extends ConsumerState<WorksScreen>
           ),
       ],
     );
+
+    if (isAllMode) {
+      return OverscrollNextPageDetector(
+        onNextPage: () async {
+          await ref.read(worksProvider.notifier).nextPage();
+          // 等待一帧后滚动到顶部，确保内容已加载
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollToTop();
+          });
+        },
+        hasNextPage: worksState.hasMore,
+        isLoading: worksState.isLoading,
+        child: scrollView,
+      );
+    }
+
+    return scrollView;
   }
 
   // 滚动到顶部

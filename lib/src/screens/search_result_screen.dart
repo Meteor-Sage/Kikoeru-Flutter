@@ -12,6 +12,7 @@ import '../widgets/sort_dialog.dart';
 import '../widgets/pagination_bar.dart';
 import '../widgets/global_audio_player_wrapper.dart';
 import '../widgets/download_fab.dart';
+import '../widgets/overscroll_next_page_detector.dart';
 
 class SearchResultScreen extends StatelessWidget {
   final String keyword;
@@ -466,12 +467,25 @@ class _SearchResultContentState extends ConsumerState<_SearchResultContent> {
       );
     }
 
-    return WorksGridView(
-      works: searchState.works,
-      layoutType: searchState.layoutType.toWorksLayoutType(),
-      scrollController: _scrollController,
+    return OverscrollNextPageDetector(
+      hasNextPage: searchState.hasMore,
       isLoading: searchState.isLoading,
-      paginationWidget: _buildPaginationBar(searchState),
+      onNextPage: () async {
+        await ref
+            .read(searchResultProvider.notifier)
+            .goToPage(searchState.currentPage + 1);
+        // 等待一帧后滚动到顶部，确保内容已加载
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToTop();
+        });
+      },
+      child: WorksGridView(
+        works: searchState.works,
+        layoutType: searchState.layoutType.toWorksLayoutType(),
+        scrollController: _scrollController,
+        isLoading: searchState.isLoading,
+        paginationWidget: _buildPaginationBar(searchState),
+      ),
     );
   }
 

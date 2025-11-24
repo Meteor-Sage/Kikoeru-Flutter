@@ -55,9 +55,10 @@ class WorksGridView extends StatelessWidget {
     return CustomScrollView(
       controller: scrollController,
       cacheExtent: 500,
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: ClampingScrollPhysics(),
-      ),
+      // 移除 physics 设置，让 OverscrollNextPageDetector 处理
+      // physics: const AlwaysScrollableScrollPhysics(
+      //   parent: ClampingScrollPhysics(),
+      // ),
       slivers: [
         SliverPadding(
           padding: EdgeInsets.all(padding),
@@ -127,9 +128,10 @@ class WorksGridView extends StatelessWidget {
     return CustomScrollView(
       controller: scrollController,
       cacheExtent: 500,
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: ClampingScrollPhysics(),
-      ),
+      // 移除 physics 设置，让 OverscrollNextPageDetector 处理
+      // physics: const AlwaysScrollableScrollPhysics(
+      //   parent: ClampingScrollPhysics(),
+      // ),
       slivers: [
         SliverPadding(
           padding: const EdgeInsets.all(8),

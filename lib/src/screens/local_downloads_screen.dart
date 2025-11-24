@@ -12,6 +12,7 @@ import '../utils/snackbar_util.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/pagination_bar.dart';
 import 'offline_work_detail_screen.dart';
+import '../widgets/overscroll_next_page_detector.dart';
 
 /// 本地下载屏幕 - 显示已完成的下载内容
 class LocalDownloadsScreen extends ConsumerStatefulWidget {
@@ -37,7 +38,7 @@ class _LocalDownloadsScreenState extends ConsumerState<LocalDownloadsScreen>
       // 提取消息
       final content = snackBar.content;
       String message = '';
-      
+
       if (content is Text) {
         message = content.data ?? '';
       } else if (content is Row) {
@@ -55,7 +56,7 @@ class _LocalDownloadsScreenState extends ConsumerState<LocalDownloadsScreen>
           }
         }
       }
-      
+
       if (message.isEmpty) {
         final messenger = ScaffoldMessenger.maybeOf(context);
         if (messenger != null && messenger.mounted) {
@@ -63,12 +64,13 @@ class _LocalDownloadsScreenState extends ConsumerState<LocalDownloadsScreen>
         }
         return;
       }
-      
+
       // 根据背景色判断类型
       final backgroundColor = snackBar.backgroundColor;
       final duration = snackBar.duration;
-      
-      if (backgroundColor == Colors.red || backgroundColor == Theme.of(context).colorScheme.error) {
+
+      if (backgroundColor == Colors.red ||
+          backgroundColor == Theme.of(context).colorScheme.error) {
         SnackBarUtil.showError(context, message, duration: duration);
       } else if (backgroundColor == Colors.green) {
         SnackBarUtil.showSuccess(context, message, duration: duration);
@@ -517,55 +519,70 @@ class _LocalDownloadsScreenState extends ConsumerState<LocalDownloadsScreen>
                         ],
                       ),
                     )
-                  : CustomScrollView(
-                      controller: _scrollController,
-                      slivers: [
-                        SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                          sliver: SliverGrid(
-                            gridDelegate:
-                                const SliverGridDelegateWithMaxCrossAxisExtent(
-                              maxCrossAxisExtent: 210,
-                              childAspectRatio: 0.72,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                            ),
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                final workId = currentPageWorkIds[index];
-                                final workTasks = currentPageTasks[workId]!;
-                                final firstTask = workTasks.first;
-                                final isSelected =
-                                    _selectedWorkIds.contains(workId);
+                  : OverscrollNextPageDetector(
+                      hasNextPage: _currentPage < totalPages,
+                      isLoading: false,
+                      onNextPage: () async {
+                        _nextPage(totalPages);
+                        // 等待一帧后滚动到顶部，确保内容已加载
+                        await Future.delayed(const Duration(milliseconds: 50));
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          _scrollToTop();
+                        });
+                      },
+                      child: CustomScrollView(
+                        controller: _scrollController,
+                        physics: const AlwaysScrollableScrollPhysics(
+                          parent: ClampingScrollPhysics(),
+                        ),
+                        slivers: [
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                            sliver: SliverGrid(
+                              gridDelegate:
+                                  const SliverGridDelegateWithMaxCrossAxisExtent(
+                                maxCrossAxisExtent: 210,
+                                childAspectRatio: 0.72,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 12,
+                              ),
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  final workId = currentPageWorkIds[index];
+                                  final workTasks = currentPageTasks[workId]!;
+                                  final firstTask = workTasks.first;
+                                  final isSelected =
+                                      _selectedWorkIds.contains(workId);
 
-                                return _buildWorkCard(
-                                  workId: workId,
-                                  workTasks: workTasks,
-                                  firstTask: firstTask,
-                                  isSelected: isSelected,
-                                );
-                              },
-                              childCount: currentPageTasks.length,
+                                  return _buildWorkCard(
+                                    workId: workId,
+                                    workTasks: workTasks,
+                                    firstTask: firstTask,
+                                    isSelected: isSelected,
+                                  );
+                                },
+                                childCount: currentPageTasks.length,
+                              ),
                             ),
                           ),
-                        ),
-                        // 分页控件
-                        SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                          sliver: SliverToBoxAdapter(
-                            child: PaginationBar(
-                              currentPage: _currentPage,
-                              totalCount: totalCount,
-                              pageSize: _pageSize,
-                              hasMore: _currentPage < totalPages,
-                              isLoading: false,
-                              onPreviousPage: _previousPage,
-                              onNextPage: () => _nextPage(totalPages),
-                              onGoToPage: _goToPage,
+                          // 分页控件
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                            sliver: SliverToBoxAdapter(
+                              child: PaginationBar(
+                                currentPage: _currentPage,
+                                totalCount: totalCount,
+                                pageSize: _pageSize,
+                                hasMore: _currentPage < totalPages,
+                                isLoading: false,
+                                onPreviousPage: _previousPage,
+                                onNextPage: () => _nextPage(totalPages),
+                                onGoToPage: _goToPage,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
             ),
           ],

@@ -8,6 +8,7 @@ import '../widgets/pagination_bar.dart';
 import '../widgets/scrollable_appbar.dart';
 import '../utils/snackbar_util.dart';
 import '../screens/work_detail_screen.dart';
+import '../widgets/overscroll_next_page_detector.dart';
 
 class PlaylistDetailScreen extends ConsumerStatefulWidget {
   final String playlistId;
@@ -223,7 +224,8 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                               labelText: '隐私设置',
                               border: const OutlineInputBorder(),
                               prefixIcon: const Icon(Icons.lock_outline),
-                              helperText: _getPrivacyDescription(selectedPrivacy),
+                              helperText:
+                                  _getPrivacyDescription(selectedPrivacy),
                               helperMaxLines: 2,
                             ),
                             items: const [
@@ -282,8 +284,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                             onPressed: () {
                               final name = nameController.text.trim();
                               if (name.isEmpty) {
-                                SnackBarUtil.showWarning(
-                                    context, '播放列表名称不能为空');
+                                SnackBarUtil.showWarning(context, '播放列表名称不能为空');
                                 return;
                               }
                               Navigator.of(context).pop();
@@ -459,8 +460,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                                                 .textTheme
                                                 .bodySmall,
                                           ),
-                                          visualDensity:
-                                              VisualDensity.compact,
+                                          visualDensity: VisualDensity.compact,
                                           backgroundColor: Theme.of(context)
                                               .colorScheme
                                               .primaryContainer,
@@ -771,71 +771,87 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
       onRefresh: () async => ref
           .read(playlistDetailProvider(widget.playlistId).notifier)
           .refresh(),
-      child: CustomScrollView(
-        controller: _scrollController,
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: ClampingScrollPhysics(),
+      child: OverscrollNextPageDetector(
+        hasNextPage: state.hasMore,
+        isLoading: state.isLoading,
+        onNextPage: () async {
+          await ref
+              .read(playlistDetailProvider(widget.playlistId).notifier)
+              .nextPage();
+          // 等待一帧后滚动到顶部，确保内容已加载
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollToTop();
+          });
+        },
+        child: CustomScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: ClampingScrollPhysics(),
+          ),
+          slivers: [
+            // 元数据信息
+            if (state.metadata != null) _buildMetadataSection(state.metadata!),
+
+            // 作品列表
+            SliverPadding(
+              padding: const EdgeInsets.all(8),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final work = state.works[index];
+                    final authState = ref.watch(authProvider);
+                    final currentUserName = authState.currentUser?.name ?? '';
+                    final isOwner = state.metadata?.userName == currentUserName;
+
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      child: _buildPlaylistWorkCard(work, isOwner),
+                    );
+                  },
+                  childCount: state.works.length,
+                ),
+              ),
+            ),
+
+            // 分页控件
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
+              sliver: SliverToBoxAdapter(
+                child: PaginationBar(
+                  currentPage: state.currentPage,
+                  totalCount: state.totalCount,
+                  pageSize: state.pageSize,
+                  hasMore: state.hasMore,
+                  isLoading: state.isLoading,
+                  onPreviousPage: () {
+                    ref
+                        .read(
+                            playlistDetailProvider(widget.playlistId).notifier)
+                        .previousPage();
+                    _scrollToTop();
+                  },
+                  onNextPage: () {
+                    ref
+                        .read(
+                            playlistDetailProvider(widget.playlistId).notifier)
+                        .nextPage();
+                    _scrollToTop();
+                  },
+                  onGoToPage: (page) {
+                    ref
+                        .read(
+                            playlistDetailProvider(widget.playlistId).notifier)
+                        .goToPage(page);
+                    _scrollToTop();
+                  },
+                ),
+              ),
+            ),
+          ],
         ),
-        slivers: [
-          // 元数据信息
-          if (state.metadata != null) _buildMetadataSection(state.metadata!),
-
-          // 作品列表
-          SliverPadding(
-            padding: const EdgeInsets.all(8),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final work = state.works[index];
-                  final authState = ref.watch(authProvider);
-                  final currentUserName = authState.currentUser?.name ?? '';
-                  final isOwner = state.metadata?.userName == currentUserName;
-
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    child: _buildPlaylistWorkCard(work, isOwner),
-                  );
-                },
-                childCount: state.works.length,
-              ),
-            ),
-          ),
-
-          // 分页控件
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
-            sliver: SliverToBoxAdapter(
-              child: PaginationBar(
-                currentPage: state.currentPage,
-                totalCount: state.totalCount,
-                pageSize: state.pageSize,
-                hasMore: state.hasMore,
-                isLoading: state.isLoading,
-                onPreviousPage: () {
-                  ref
-                      .read(playlistDetailProvider(widget.playlistId).notifier)
-                      .previousPage();
-                  _scrollToTop();
-                },
-                onNextPage: () {
-                  ref
-                      .read(playlistDetailProvider(widget.playlistId).notifier)
-                      .nextPage();
-                  _scrollToTop();
-                },
-                onGoToPage: (page) {
-                  ref
-                      .read(playlistDetailProvider(widget.playlistId).notifier)
-                      .goToPage(page);
-                  _scrollToTop();
-                },
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -876,21 +892,24 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                     children: [
                       Text(
                         metadata.displayName,
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         metadata.userName,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
                             ),
                       ),
                     ],
                   ),
                 ),
-                
+
                 // 操作按钮
                 Builder(
                   builder: (context) {
@@ -959,7 +978,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                 ),
-                
+
                 if (metadata.playbackCount > 0) ...[
                   const SizedBox(width: 16),
                   Icon(
@@ -1056,7 +1075,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
               ),
             ),
             const SizedBox(width: 12),
-            
+
             // 信息区域
             Expanded(
               child: Column(
@@ -1074,7 +1093,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  
+
                   // RJ号、社团名和用户评分
                   Wrap(
                     spacing: 8,
@@ -1136,7 +1155,7 @@ class _PlaylistDetailScreenState extends ConsumerState<PlaylistDetailScreen> {
                 ],
               ),
             ),
-            
+
             // 移除按钮（仅作者可见）
             if (isOwner) ...[
               const SizedBox(width: 8),

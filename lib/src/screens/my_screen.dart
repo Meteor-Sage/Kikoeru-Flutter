@@ -17,6 +17,8 @@ import '../widgets/sort_dialog.dart';
 import '../models/sort_options.dart';
 export '../providers/my_reviews_provider.dart' show MyReviewLayoutType;
 
+import '../widgets/overscroll_next_page_detector.dart';
+
 class MyScreen extends ConsumerStatefulWidget {
   const MyScreen({super.key});
 
@@ -469,56 +471,67 @@ class _MyScreenState extends ConsumerState<MyScreen>
 
     return RefreshIndicator(
       onRefresh: () async => ref.read(myReviewsProvider.notifier).refresh(),
-      child: CustomScrollView(
-        controller: _scrollController,
-        cacheExtent: 500,
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: ClampingScrollPhysics(),
-        ),
-        slivers: [
-          SliverPadding(
-            padding: EdgeInsets.fromLTRB(padding, 8, padding, padding),
-            sliver: SliverMasonryGrid.count(
-              crossAxisCount: crossAxisCount,
-              mainAxisSpacing: spacing,
-              crossAxisSpacing: spacing,
-              childCount: state.works.length,
-              itemBuilder: (context, index) {
-                final work = state.works[index];
-                return RepaintBoundary(
-                  child: EnhancedWorkCard(
-                      work: work, crossAxisCount: crossAxisCount),
-                );
-              },
-            ),
+      child: OverscrollNextPageDetector(
+        hasNextPage: state.hasMore,
+        isLoading: state.isLoading,
+        onNextPage: () async {
+          await ref.read(myReviewsProvider.notifier).nextPage();
+          // 等待一帧后滚动到顶部，确保内容已加载
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollToTop();
+          });
+        },
+        child: CustomScrollView(
+          controller: _scrollController,
+          cacheExtent: 500,
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: ClampingScrollPhysics(),
           ),
-
-          // 分页控件 - 始终显示
-          SliverPadding(
-            padding: EdgeInsets.fromLTRB(padding, spacing, padding, 24),
-            sliver: SliverToBoxAdapter(
-              child: PaginationBar(
-                currentPage: state.currentPage,
-                totalCount: state.totalCount,
-                pageSize: state.pageSize,
-                hasMore: state.hasMore,
-                isLoading: state.isLoading,
-                onPreviousPage: () {
-                  ref.read(myReviewsProvider.notifier).previousPage();
-                  _scrollToTop();
-                },
-                onNextPage: () {
-                  ref.read(myReviewsProvider.notifier).nextPage();
-                  _scrollToTop();
-                },
-                onGoToPage: (page) {
-                  ref.read(myReviewsProvider.notifier).goToPage(page);
-                  _scrollToTop();
+          slivers: [
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(padding, 8, padding, padding),
+              sliver: SliverMasonryGrid.count(
+                crossAxisCount: crossAxisCount,
+                mainAxisSpacing: spacing,
+                crossAxisSpacing: spacing,
+                childCount: state.works.length,
+                itemBuilder: (context, index) {
+                  final work = state.works[index];
+                  return RepaintBoundary(
+                    child: EnhancedWorkCard(
+                        work: work, crossAxisCount: crossAxisCount),
+                  );
                 },
               ),
             ),
-          ),
-        ],
+
+            // 分页控件 - 始终显示
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(padding, spacing, padding, 24),
+              sliver: SliverToBoxAdapter(
+                child: PaginationBar(
+                  currentPage: state.currentPage,
+                  totalCount: state.totalCount,
+                  pageSize: state.pageSize,
+                  hasMore: state.hasMore,
+                  isLoading: state.isLoading,
+                  onPreviousPage: () {
+                    ref.read(myReviewsProvider.notifier).previousPage();
+                    _scrollToTop();
+                  },
+                  onNextPage: () {
+                    ref.read(myReviewsProvider.notifier).nextPage();
+                    _scrollToTop();
+                  },
+                  onGoToPage: (page) {
+                    ref.read(myReviewsProvider.notifier).goToPage(page);
+                    _scrollToTop();
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -526,54 +539,65 @@ class _MyScreenState extends ConsumerState<MyScreen>
   Widget _buildListView(MyReviewsState state) {
     return RefreshIndicator(
       onRefresh: () async => ref.read(myReviewsProvider.notifier).refresh(),
-      child: CustomScrollView(
-        controller: _scrollController,
-        cacheExtent: 500,
-        physics: const AlwaysScrollableScrollPhysics(
-          parent: ClampingScrollPhysics(),
-        ),
-        slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.all(8),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final work = state.works[index];
-                  return RepaintBoundary(
-                    child: EnhancedWorkCard(work: work, crossAxisCount: 1),
-                  );
-                },
-                childCount: state.works.length,
+      child: OverscrollNextPageDetector(
+        hasNextPage: state.hasMore,
+        isLoading: state.isLoading,
+        onNextPage: () async {
+          await ref.read(myReviewsProvider.notifier).nextPage();
+          // 等待一帧后滚动到顶部，确保内容已加载
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollToTop();
+          });
+        },
+        child: CustomScrollView(
+          controller: _scrollController,
+          cacheExtent: 500,
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: ClampingScrollPhysics(),
+          ),
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.all(8),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final work = state.works[index];
+                    return RepaintBoundary(
+                      child: EnhancedWorkCard(work: work, crossAxisCount: 1),
+                    );
+                  },
+                  childCount: state.works.length,
+                ),
               ),
             ),
-          ),
 
-          // 分页控件 - 始终显示
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
-            sliver: SliverToBoxAdapter(
-              child: PaginationBar(
-                currentPage: state.currentPage,
-                totalCount: state.totalCount,
-                pageSize: state.pageSize,
-                hasMore: state.hasMore,
-                isLoading: state.isLoading,
-                onPreviousPage: () {
-                  ref.read(myReviewsProvider.notifier).previousPage();
-                  _scrollToTop();
-                },
-                onNextPage: () {
-                  ref.read(myReviewsProvider.notifier).nextPage();
-                  _scrollToTop();
-                },
-                onGoToPage: (page) {
-                  ref.read(myReviewsProvider.notifier).goToPage(page);
-                  _scrollToTop();
-                },
+            // 分页控件 - 始终显示
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 24),
+              sliver: SliverToBoxAdapter(
+                child: PaginationBar(
+                  currentPage: state.currentPage,
+                  totalCount: state.totalCount,
+                  pageSize: state.pageSize,
+                  hasMore: state.hasMore,
+                  isLoading: state.isLoading,
+                  onPreviousPage: () {
+                    ref.read(myReviewsProvider.notifier).previousPage();
+                    _scrollToTop();
+                  },
+                  onNextPage: () {
+                    ref.read(myReviewsProvider.notifier).nextPage();
+                    _scrollToTop();
+                  },
+                  onGoToPage: (page) {
+                    ref.read(myReviewsProvider.notifier).goToPage(page);
+                    _scrollToTop();
+                  },
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
