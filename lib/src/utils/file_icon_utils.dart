@@ -198,7 +198,8 @@ class FileIconUtils {
         title.endsWith('.aac') ||
         title.endsWith('.ogg') ||
         title.endsWith('.wma') ||
-        title.endsWith('.opus');
+        title.endsWith('.opus') ||
+        title.endsWith('.m4b');
   }
 
   /// 判断是否是字幕文件

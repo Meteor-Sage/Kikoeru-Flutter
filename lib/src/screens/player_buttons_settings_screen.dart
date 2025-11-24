@@ -50,6 +50,8 @@ class _PlayerButtonsSettingsScreenState
         return Icons.repeat;
       case PlayerButtonType.subtitleAdjustment:
         return Icons.tune;
+      case PlayerButtonType.floatingLyric:
+        return Icons.picture_in_picture_alt;
     }
   }
 

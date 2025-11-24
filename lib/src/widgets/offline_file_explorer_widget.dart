@@ -258,8 +258,13 @@ class _OfflineFileExplorerWidgetState
       final audioFiles = <String>[];
       void collectAudioFiles(List<dynamic> items) {
         for (final item in items) {
-          if (_getProperty(item, 'type', defaultValue: '') == 'audio') {
-            final title = _getProperty(item, 'title', defaultValue: '');
+          final type = _getProperty(item, 'type', defaultValue: '');
+          final title = _getProperty(item, 'title', defaultValue: '');
+
+          // 检查是否是音频文件（通过类型或文件名后缀）
+          // 修复：wav等格式可能没有被正确标记为audio类型
+          if (type == 'audio' ||
+              FileIconUtils.inferFileType(title) == 'audio') {
             if (title.isNotEmpty) {
               audioFiles.add(title);
             }

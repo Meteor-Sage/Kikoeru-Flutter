@@ -1,0 +1,177 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ "main" ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  android:
+    name: Android Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          
+      - name: Get Dependencies
+        run: flutter pub get
+        
+      - name: Build Universal APK
+        run: flutter build apk --release
+        
+      - name: Rename Universal APK
+        run: mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/KikoFlu-android-universe-release.apk
+        
+      - name: Build Split APKs
+        run: flutter build apk --release --split-per-abi
+        
+      - name: Rename Split APKs
+        run: |
+          mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk build/app/outputs/flutter-apk/KikoFlu-android-arm64-v8a-release.apk
+          mv build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk build/app/outputs/flutter-apk/KikoFlu-android-armeabi-v7a-release.apk
+          mv build/app/outputs/flutter-apk/app-x86_64-release.apk build/app/outputs/flutter-apk/KikoFlu-android-x86_64-release.apk
+          
+      - name: Upload Android Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: |
+            build/app/outputs/flutter-apk/KikoFlu-android-universe-release.apk
+            build/app/outputs/flutter-apk/KikoFlu-android-arm64-v8a-release.apk
+            build/app/outputs/flutter-apk/KikoFlu-android-armeabi-v7a-release.apk
+            build/app/outputs/flutter-apk/KikoFlu-android-x86_64-release.apk
+
+  windows:
+    name: Windows Build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          
+      - name: Get Dependencies
+        run: flutter pub get
+        
+      - name: Build Windows Release
+        run: flutter build windows --release
+        
+      - name: Create Zip
+        uses: thedoctor0/zip-release@0.7.6
+        with:
+          type: 'zip'
+          filename: 'KikoFlu-windows.zip'
+          directory: 'build/windows/x64/runner/Release'
+          
+      - name: Create MSIX
+        run: flutter pub run msix:create --install-certificate false
+        
+      - name: Rename MSIX
+        run: |
+          Get-ChildItem -Path build/windows -Filter *.msix -Recurse | Rename-Item -NewName "kikoeru-windows.msix"
+
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: |
+            build/windows/x64/runner/Release/KikoFlu-windows.zip
+            build/windows/**/kikoeru-windows.msix
+
+  ios:
+    name: iOS Build (Unsigned)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          
+      - name: Get Dependencies
+        run: flutter pub get
+        
+      - name: Install Pods
+        run: |
+          cd ios
+          pod install
+          
+      - name: Build iOS Archive (Unsigned)
+        run: |
+          cd ios
+          xcodebuild \
+            -workspace Runner.xcworkspace \
+            -scheme Runner \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath build/Runner.xcarchive \
+            -arch arm64 \
+            archive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_ENTITLEMENTS="" \
+            PROVISIONING_PROFILE="" \
+            ONLY_ACTIVE_ARCH=NO
+            
+      - name: Package IPA
+        run: |
+          mkdir -p build/Payload
+          cp -r ios/build/Runner.xcarchive/Products/Applications/Runner.app build/Payload/
+          cd build
+          zip -qr KikoFlu-ios-unsigned.ipa Payload
+          
+      - name: Upload iOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-unsigned-release
+          path: build/KikoFlu-ios-unsigned.ipa
+
+  macos:
+    name: macOS Build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          
+      - name: Get Dependencies
+        run: flutter pub get
+        
+      - name: Build macOS Release
+        run: flutter build macos --release
+        
+      - name: Create DMG
+        run: |
+          mkdir -p build/dmg
+          cp -R build/macos/Build/Products/Release/KikoFlu.app build/dmg/
+          hdiutil create -volname "KikoFlu" \
+            -srcfolder build/dmg \
+            -ov -format UDZO \
+            KikoFlu-macOS.dmg
+            
+      - name: Upload macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-release
+          path: KikoFlu-macos.dmg

@@ -11,7 +11,8 @@ enum PlayerButtonType {
   speed('播放速度', 'speed'),
   repeat('循环模式', 'repeat'),
   detail('查看详情', 'detail'),
-  subtitleAdjustment('字幕轴调整', 'subtitle_adjustment');
+  subtitleAdjustment('字幕轴调整', 'subtitle_adjustment'),
+  floatingLyric('悬浮歌词', 'floating_lyric');
 
   final String label;
   final String key;
@@ -31,8 +32,9 @@ class PlayerButtonsConfig {
     buttonOrder: [
       PlayerButtonType.seekBackward,
       PlayerButtonType.seekForward,
-      PlayerButtonType.sleepTimer,
       PlayerButtonType.mark,
+      PlayerButtonType.floatingLyric,
+      PlayerButtonType.sleepTimer,
       PlayerButtonType.speed,
       PlayerButtonType.repeat,
       PlayerButtonType.subtitleAdjustment,
@@ -45,9 +47,10 @@ class PlayerButtonsConfig {
     buttonOrder: [
       PlayerButtonType.seekBackward,
       PlayerButtonType.seekForward,
+      PlayerButtonType.floatingLyric,
       PlayerButtonType.sleepTimer,
-      PlayerButtonType.mark,
       PlayerButtonType.volume,
+      PlayerButtonType.mark,
       PlayerButtonType.speed,
       PlayerButtonType.repeat,
       PlayerButtonType.subtitleAdjustment,

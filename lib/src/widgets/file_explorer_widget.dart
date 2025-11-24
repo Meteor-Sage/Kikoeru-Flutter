@@ -206,8 +206,13 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
       final audioFiles = <String>[];
       void collectAudioFiles(List<dynamic> items) {
         for (final item in items) {
-          if (item['type'] == 'audio') {
-            final title = item['title'] ?? item['name'] ?? '';
+          final title = item['title'] ?? item['name'] ?? '';
+          final type = item['type'];
+
+          // 检查是否是音频文件（通过类型或文件名后缀）
+          // 修复：wav等格式可能没有被正确标记为audio类型
+          if (type == 'audio' ||
+              FileIconUtils.inferFileType(title) == 'audio') {
             if (title.isNotEmpty) {
               audioFiles.add(title);
             }

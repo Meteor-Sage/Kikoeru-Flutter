@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../../providers/audio_provider.dart';
+import '../../providers/floating_lyric_provider.dart';
 import '../../providers/lyric_provider.dart';
 import '../../providers/player_buttons_provider.dart';
 import '../responsive_dialog.dart';
@@ -381,6 +382,32 @@ class _PlayerControlsWidgetState extends ConsumerState<PlayerControlsWidget> {
             );
           },
         );
+      case PlayerButtonType.floatingLyric:
+        return Consumer(
+          builder: (context, ref, child) {
+            final isEnabled = ref.watch(floatingLyricEnabledProvider);
+            return ListTile(
+              leading: Icon(
+                Icons.picture_in_picture_alt,
+                color: isEnabled ? Theme.of(context).colorScheme.primary : null,
+              ),
+              title: const Text('悬浮歌词'),
+              trailing: Transform.scale(
+                scale: 0.8,
+                alignment: Alignment.centerRight,
+                child: Switch(
+                  value: isEnabled,
+                  onChanged: (value) {
+                    ref.read(floatingLyricEnabledProvider.notifier).toggle();
+                  },
+                ),
+              ),
+              onTap: () {
+                ref.read(floatingLyricEnabledProvider.notifier).toggle();
+              },
+            );
+          },
+        );
     }
   }
 
@@ -569,6 +596,26 @@ class _PlayerControlsWidgetState extends ConsumerState<PlayerControlsWidget> {
             if (!isLandscape) const SizedBox(height: 14),
           ],
         );
+      case PlayerButtonType.floatingLyric:
+        final isEnabled = ref.watch(floatingLyricEnabledProvider);
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              onPressed: () {
+                ref.read(floatingLyricEnabledProvider.notifier).toggle();
+              },
+              icon: Icon(
+                isEnabled
+                    ? Icons.picture_in_picture_alt
+                    : Icons.picture_in_picture_alt_outlined,
+                color: isEnabled ? Theme.of(context).colorScheme.primary : null,
+              ),
+              iconSize: iconSize,
+            ),
+            if (!isLandscape) const SizedBox(height: 14),
+          ],
+        );
     }
   }
 
@@ -723,8 +770,12 @@ class _PlayerControlsWidgetState extends ConsumerState<PlayerControlsWidget> {
                               moreButtons.contains(PlayerButtonType.sleepTimer);
                           final hasSubtitleAdjustmentInMore = moreButtons
                               .contains(PlayerButtonType.subtitleAdjustment);
+                          final hasFloatingLyricInMore = moreButtons
+                              .contains(PlayerButtonType.floatingLyric);
                           final timerState = ref.watch(sleepTimerProvider);
                           final lyricState = ref.watch(lyricControllerProvider);
+                          final isFloatingLyricEnabled =
+                              ref.watch(floatingLyricEnabledProvider);
 
                           final shouldShowBadge = (hasSpeedInMore &&
                                   widget.audioState.speed != 1.0) ||
@@ -733,7 +784,9 @@ class _PlayerControlsWidgetState extends ConsumerState<PlayerControlsWidget> {
                                       LoopMode.off) ||
                               (hasSleepTimerInMore && timerState.isActive) ||
                               (hasSubtitleAdjustmentInMore &&
-                                  lyricState.timelineOffset != Duration.zero);
+                                  lyricState.timelineOffset != Duration.zero) ||
+                              (hasFloatingLyricInMore &&
+                                  isFloatingLyricEnabled);
 
                           return Badge(
                             isLabelVisible: shouldShowBadge,

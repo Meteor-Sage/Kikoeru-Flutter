@@ -81,6 +81,7 @@ class SubtitleLibraryService {
       '.opus',
       '.wma',
       '.mp4',
+      '.m4b',
     ];
 
     final lowerName = fileName.toLowerCase();
