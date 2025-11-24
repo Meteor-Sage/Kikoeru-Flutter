@@ -29,6 +29,69 @@ class SubtitleLibraryService {
   static final _cacheUpdateController = StreamController<void>.broadcast();
   static Stream<void> get onCacheUpdated => _cacheUpdateController.stream;
 
+  /// 检查字幕文件是否匹配音频文件
+  /// [subtitleFileName] 字幕文件名（包含扩展名）
+  /// [audioFileName] 音频文件名（包含扩展名）
+  static bool isSubtitleForAudio(
+      String subtitleFileName, String audioFileName) {
+    final lowerSubtitle = subtitleFileName.toLowerCase();
+    final lowerAudio = audioFileName.toLowerCase();
+
+    // 常见字幕扩展名
+    final textExtensions = ['.vtt', '.srt', '.txt', '.lrc'];
+
+    // 1. 检查是否是字幕文件，并获取去掉字幕后缀后的部分
+    String? subtitleContentName;
+    for (final ext in textExtensions) {
+      if (lowerSubtitle.endsWith(ext)) {
+        subtitleContentName =
+            lowerSubtitle.substring(0, lowerSubtitle.length - ext.length);
+        break;
+      }
+    }
+
+    if (subtitleContentName == null) {
+      return false;
+    }
+
+    // 2. 获取音频文件的基础名称（去掉扩展名）
+    // 例如: audio.wav -> audio
+    final audioBaseName = removeAudioExtension(lowerAudio);
+
+    // 3. 获取字幕文件的基础名称（尝试去掉音频扩展名）
+    // 这一步是为了处理 audio.mp3.vtt 匹配 audio.wav 的情况
+    // subtitleContentName 此时可能是 "audio.mp3" (规则1情况) 或 "audio" (规则2情况)
+    // 如果是 "audio.mp3"，removeAudioExtension 会将其变为 "audio"
+    // 如果是 "audio"，removeAudioExtension 会保持原样 "audio"
+    final subtitleBaseName = removeAudioExtension(subtitleContentName);
+
+    // 4. 比较基础名称
+    return audioBaseName == subtitleBaseName;
+  }
+
+  /// 移除音频文件扩展名
+  static String removeAudioExtension(String fileName) {
+    final audioExtensions = [
+      '.mp3',
+      '.wav',
+      '.flac',
+      '.m4a',
+      '.aac',
+      '.ogg',
+      '.opus',
+      '.wma',
+      '.mp4',
+    ];
+
+    final lowerName = fileName.toLowerCase();
+    for (final ext in audioExtensions) {
+      if (lowerName.endsWith(ext)) {
+        return fileName.substring(0, fileName.length - ext.length);
+      }
+    }
+    return fileName;
+  }
+
   /// 获取已解析目录下的所有文件夹名称
   static Future<List<String>> getParsedSubtitleFolders() async {
     if (_cachedFileTree == null) {
@@ -39,7 +102,8 @@ class SubtitleLibraryService {
 
     try {
       final parsedFolder = _cachedFileTree!.firstWhere(
-        (item) => item['title'] == _parsedFolderName && item['type'] == 'folder',
+        (item) =>
+            item['title'] == _parsedFolderName && item['type'] == 'folder',
         orElse: () => <String, dynamic>{},
       );
 
@@ -64,7 +128,7 @@ class SubtitleLibraryService {
     _cachedStats = null;
     _lastKnownModified = null;
     _libraryRootPath = null;
-    
+
     try {
       final libraryDir = await getSubtitleLibraryDirectory();
       final cacheFile = File('${libraryDir.path}/$_cacheFileName');
@@ -74,7 +138,7 @@ class SubtitleLibraryService {
     } catch (e) {
       print('[SubtitleLibrary] 删除缓存文件失败: $e');
     }
-    
+
     print('[SubtitleLibrary] 缓存已清除');
     _cacheUpdateController.add(null);
   }
@@ -108,15 +172,17 @@ class SubtitleLibraryService {
     try {
       final libraryDir = await getSubtitleLibraryDirectory();
       final cacheFile = File('${libraryDir.path}/$_cacheFileName');
-      
+
       final cacheData = {
         'timestamp': DateTime.now().toIso8601String(),
         'lastKnownModified': _lastKnownModified?.toIso8601String(),
-        'stats': _cachedStats != null ? {
-          'totalFiles': _cachedStats!.totalFiles,
-          'totalSize': _cachedStats!.totalSize,
-          'folderCount': _cachedStats!.folderCount,
-        } : null,
+        'stats': _cachedStats != null
+            ? {
+                'totalFiles': _cachedStats!.totalFiles,
+                'totalSize': _cachedStats!.totalSize,
+                'folderCount': _cachedStats!.folderCount,
+              }
+            : null,
         'fileTree': _cachedFileTree,
       };
 
@@ -133,7 +199,7 @@ class SubtitleLibraryService {
     try {
       final libraryDir = await getSubtitleLibraryDirectory();
       final cacheFile = File('${libraryDir.path}/$_cacheFileName');
-      
+
       if (!await cacheFile.exists()) return false;
 
       final content = await cacheFile.readAsString();
@@ -156,11 +222,12 @@ class SubtitleLibraryService {
 
       // 恢复文件树
       if (cacheData['fileTree'] != null) {
-        _cachedFileTree = _convertDynamicList(cacheData['fileTree'] as List<dynamic>);
+        _cachedFileTree =
+            _convertDynamicList(cacheData['fileTree'] as List<dynamic>);
         print('[SubtitleLibrary] 已从磁盘加载缓存');
         return true;
       }
-      
+
       return false;
     } catch (e) {
       print('[SubtitleLibrary] 加载缓存失败: $e');
@@ -449,12 +516,16 @@ class SubtitleLibraryService {
 
       // 刷新相关文件夹缓存
       if (modifiedPaths.isNotEmpty) {
-        await _refreshDirectoriesAfterChange(modifiedPaths);
+        onProgress?.call('正在刷新缓存...');
+        await _refreshDirectoriesAfterChange(modifiedPaths,
+            onProgress: onProgress);
       } else {
         // 如果没有收集到具体路径（异常情况），回退到刷新整个分类
         final parsedDirPath = '${libraryDir.path}/$_parsedFolderName';
         final unknownDirPath = '${libraryDir.path}/$_unknownFolderName';
-        await _refreshDirectoriesAfterChange({parsedDirPath, unknownDirPath});
+        onProgress?.call('正在刷新缓存...');
+        await _refreshDirectoriesAfterChange({parsedDirPath, unknownDirPath},
+            onProgress: onProgress);
       }
 
       return ImportResult(
@@ -543,26 +614,27 @@ class SubtitleLibraryService {
         // 智能判断是否需要为根压缩包创建文件夹
         // 如果压缩包名符合 RJ 号格式，且内容不是已经包含在同名文件夹中，则创建文件夹
         final zipName = platformFile.name;
-        final zipNameWithoutExt =
-            zipName.replaceAll(RegExp(r'\.(zip|rar|7z)$', caseSensitive: false), '');
-        
+        final zipNameWithoutExt = zipName.replaceAll(
+            RegExp(r'\.(zip|rar|7z)$', caseSensitive: false), '');
+
         String relativePath = '';
-        
+
         // 只有当压缩包名符合 RJ 号格式时才进行智能判断
         if (_matchFolderPattern(zipNameWithoutExt)) {
           Archive? rootArchive;
           try {
-             // 重新解码一次用于检查结构（虽然有性能损耗，但为了正确性是值得的）
-             // 注意：这里假设是 ZIP，前面已经检查过
-             if (platformFile.extension == 'zip') {
-               rootArchive = ZipDecoder().decodeBytes(bytes, verify: false);
-             }
+            // 重新解码一次用于检查结构（虽然有性能损耗，但为了正确性是值得的）
+            // 注意：这里假设是 ZIP，前面已经检查过
+            if (platformFile.extension == 'zip') {
+              rootArchive = ZipDecoder().decodeBytes(bytes, verify: false);
+            }
           } catch (e) {
             print('[SubtitleLibrary] 检查压缩包结构失败: $e');
           }
 
           if (rootArchive != null) {
-            final shouldCreate = _shouldCreateNewFolder(rootArchive, zipNameWithoutExt);
+            final shouldCreate =
+                _shouldCreateNewFolder(rootArchive, zipNameWithoutExt);
             if (shouldCreate) {
               relativePath = zipNameWithoutExt;
               print('[SubtitleLibrary] 根压缩包符合 RJ 格式且内容分散，将解压到: $relativePath');
@@ -604,10 +676,11 @@ class SubtitleLibraryService {
             '[SubtitleLibrary] 已解析: $parsedCount 个文件夹, 未知作品: $unknownCount 个文件夹');
       } finally {
         // 清理临时目录
+        onProgress?.call('正在清理临时文件...');
         try {
           if (await tempDir.exists()) {
-            await tempDir.delete(recursive: true);
-            print('[SubtitleLibrary] 清理临时目录');
+            await _deleteDirectoryWithProgress(tempDir, onProgress);
+            print('[SubtitleLibrary] 清理临时目录完成');
           }
         } catch (e) {
           print('[SubtitleLibrary] 清理临时目录失败: $e');
@@ -637,12 +710,16 @@ class SubtitleLibraryService {
 
       // 刷新相关文件夹缓存
       if (modifiedPaths.isNotEmpty) {
-        await _refreshDirectoriesAfterChange(modifiedPaths);
+        onProgress?.call('正在刷新缓存...');
+        await _refreshDirectoriesAfterChange(modifiedPaths,
+            onProgress: onProgress);
       } else {
         // 如果没有收集到具体路径（异常情况），回退到刷新整个分类
         final parsedDirPath = '${libraryDir.path}/$_parsedFolderName';
         final unknownDirPath = '${libraryDir.path}/$_unknownFolderName';
-        await _refreshDirectoriesAfterChange({parsedDirPath, unknownDirPath});
+        onProgress?.call('正在刷新缓存...');
+        await _refreshDirectoriesAfterChange({parsedDirPath, unknownDirPath},
+            onProgress: onProgress);
       }
 
       String message = '成功导入 ${stats.successCount} 个字幕文件';
@@ -961,10 +1038,19 @@ class SubtitleLibraryService {
     await _refreshDirectoriesAfterChange({directoryPath});
   }
 
-  static Future<void> _refreshDirectoriesAfterChange(
-      Set<String> directoryPaths) async {
+  static Future<void> _refreshDirectoriesAfterChange(Set<String> directoryPaths,
+      {Function(String)? onProgress}) async {
     if (directoryPaths.isEmpty) {
       await _updateLibraryModifiedTime();
+      return;
+    }
+
+    // 如果变更的文件夹数量过多（超过5个），直接进行全量刷新
+    // 因为逐个刷新几千个文件夹的开销远大于一次全量扫描
+    if (directoryPaths.length > 5) {
+      print('[SubtitleLibrary] 变更文件夹数量过多 (${directoryPaths.length})，切换为全量刷新');
+      onProgress?.call('正在重建缓存...');
+      await getSubtitleFiles(forceRefresh: true);
       return;
     }
 
@@ -976,7 +1062,14 @@ class SubtitleLibraryService {
             .where((path) => path.startsWith(_libraryRootPath!))
             .toSet();
 
+        int count = 0;
+        final total = targets.length;
         for (final dir in targets) {
+          count++;
+          // 如果数量较多，显示进度
+          if (total > 5 && onProgress != null) {
+            onProgress('正在刷新缓存: $count/$total');
+          }
           await _refreshDirectorySnapshot(dir);
         }
       }
@@ -1980,6 +2073,30 @@ class SubtitleLibraryService {
     // 文件夹名与ZIP名相同，不需要创建
     print('[SubtitleLibrary] 压缩包内文件夹名与 ZIP 名相同，直接解压');
     return false;
+  }
+
+  /// 递归删除目录并显示进度
+  static Future<void> _deleteDirectoryWithProgress(
+      Directory dir, Function(String)? onProgress) async {
+    try {
+      await for (final entity in dir.list(followLinks: false)) {
+        if (entity is Directory) {
+          await _deleteDirectoryWithProgress(entity, onProgress);
+        } else {
+          await entity.delete();
+        }
+      }
+
+      final folderName = dir.path.split(RegExp(r'[/\\]')).last;
+      // 避免显示顶层临时目录名，只显示实际的内容文件夹
+      if (!folderName.startsWith('.temp_')) {
+        onProgress?.call('正在清理临时文件: $folderName');
+      }
+
+      await dir.delete();
+    } catch (e) {
+      print('[SubtitleLibrary] 删除失败: ${dir.path}, $e');
+    }
   }
 }
 

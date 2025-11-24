@@ -191,7 +191,6 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
       _audioWithLibrarySubtitles.clear();
       final workId = widget.work.id;
       final parsedFolderPath = '${libraryDir.path}/已解析';
-      final textExtensions = ['.vtt', '.srt', '.txt', '.lrc'];
 
       // 生成可能的文件夹名称列表（支持带前导零的格式）
       final possibleFolderNames = [
@@ -232,32 +231,13 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
         await for (final entity in folder.list(recursive: true)) {
           if (entity is File) {
             final fileName = entity.path.split(Platform.pathSeparator).last;
-            final lowerFileName = fileName.toLowerCase();
-
-            // 检查是否是字幕文件
-            if (!textExtensions.any((ext) => lowerFileName.endsWith(ext))) {
-              continue;
-            }
 
             // 检查是否有音频文件匹配这个字幕
             for (final audioFile in audioFiles) {
-              final audioNameWithoutExt = _removeAudioExtension(audioFile);
-
-              // 规则1: 完全匹配
-              for (final ext in textExtensions) {
-                if (lowerFileName == '${audioFile.toLowerCase()}$ext') {
-                  _audioWithLibrarySubtitles.add(audioFile);
-                  break;
-                }
-              }
-
-              // 规则2: 去掉扩展名匹配
-              for (final ext in textExtensions) {
-                if (lowerFileName ==
-                    '${audioNameWithoutExt.toLowerCase()}$ext') {
-                  _audioWithLibrarySubtitles.add(audioFile);
-                  break;
-                }
+              if (SubtitleLibraryService.isSubtitleForAudio(
+                  fileName, audioFile)) {
+                _audioWithLibrarySubtitles.add(audioFile);
+                break;
               }
             }
           }
@@ -269,29 +249,6 @@ class _FileExplorerWidgetState extends ConsumerState<FileExplorerWidget> {
     } catch (e) {
       print('[FileExplorer] 检查字幕库失败: $e');
     }
-  }
-
-  // 移除音频文件扩展名
-  String _removeAudioExtension(String fileName) {
-    final audioExtensions = [
-      '.mp3',
-      '.wav',
-      '.flac',
-      '.m4a',
-      '.aac',
-      '.ogg',
-      '.opus',
-      '.wma',
-      '.mp4',
-    ];
-
-    final lowerName = fileName.toLowerCase();
-    for (final ext in audioExtensions) {
-      if (lowerName.endsWith(ext)) {
-        return fileName.substring(0, fileName.length - ext.length);
-      }
-    }
-    return fileName;
   }
 
   // 识别主文件夹：音频数量最多的目录，如果有多个则选择文本文件最多的

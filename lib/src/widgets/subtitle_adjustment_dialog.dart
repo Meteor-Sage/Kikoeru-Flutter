@@ -78,7 +78,8 @@ class _SubtitleAdjustmentDialogState
 
       // 生成文件名
       final trackTitle = currentTrack.title;
-      final audioNameWithoutExt = _removeAudioExtension(trackTitle);
+      final audioNameWithoutExt =
+          SubtitleLibraryService.removeAudioExtension(trackTitle);
 
       // 获取导出内容
       final lyricController = ref.read(lyricControllerProvider.notifier);
@@ -129,7 +130,8 @@ class _SubtitleAdjustmentDialogState
 
       // 生成文件名
       final trackTitle = currentTrack.title;
-      final audioNameWithoutExt = _removeAudioExtension(trackTitle);
+      final audioNameWithoutExt =
+          SubtitleLibraryService.removeAudioExtension(trackTitle);
 
       // 获取导出内容
       final lyricController = ref.read(lyricControllerProvider.notifier);
@@ -160,25 +162,6 @@ class _SubtitleAdjustmentDialogState
         setState(() => _isSaving = false);
       }
     }
-  }
-
-  String _removeAudioExtension(String fileName) {
-    final audioExtensions = [
-      '.mp3',
-      '.m4a',
-      '.wav',
-      '.flac',
-      '.ogg',
-      '.aac',
-      '.wma'
-    ];
-    final lowerName = fileName.toLowerCase();
-    for (final ext in audioExtensions) {
-      if (lowerName.endsWith(ext)) {
-        return fileName.substring(0, fileName.length - ext.length);
-      }
-    }
-    return fileName;
   }
 
   void _showSaveOptions() {

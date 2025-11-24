@@ -196,8 +196,6 @@ class LyricController extends StateNotifier<LyricState> {
       }
 
       final trackTitle = track.title;
-      final audioNameWithoutExt = _removeAudioExtension(trackTitle);
-      final textExtensions = ['.vtt', '.srt', '.txt', '.lrc'];
       final workId = track.workId;
 
       print('[Lyric] 在字幕库中查找: track="$trackTitle", workId=$workId');
@@ -226,8 +224,6 @@ class LyricController extends StateNotifier<LyricState> {
               final match = await _searchLyricInFolder(
                 folder,
                 trackTitle,
-                audioNameWithoutExt,
-                textExtensions,
               );
               if (match != null) {
                 print('[Lyric] 在已解析/$folderName文件夹找到匹配: $match');
@@ -245,8 +241,6 @@ class LyricController extends StateNotifier<LyricState> {
         final match = await _searchLyricInFolder(
           savedFolder,
           trackTitle,
-          audioNameWithoutExt,
-          textExtensions,
         );
         if (match != null) {
           print('[Lyric] 在"已保存"文件夹找到匹配: $match');
@@ -266,32 +260,14 @@ class LyricController extends StateNotifier<LyricState> {
   Future<String?> _searchLyricInFolder(
     Directory folder,
     String trackTitle,
-    String audioNameWithoutExt,
-    List<String> textExtensions,
   ) async {
     try {
       await for (final entity in folder.list(recursive: true)) {
         if (entity is File) {
-          final fileName =
-              entity.path.split(Platform.pathSeparator).last.toLowerCase();
+          final fileName = entity.path.split(Platform.pathSeparator).last;
 
-          // 检查是否是字幕文件
-          final isLyricFile =
-              textExtensions.any((ext) => fileName.endsWith(ext));
-          if (!isLyricFile) continue;
-
-          // 规则1: 完全匹配（音频文件名 + 字幕扩展名）
-          for (final ext in textExtensions) {
-            if (fileName == '${trackTitle.toLowerCase()}$ext') {
-              return entity.path;
-            }
-          }
-
-          // 规则2: 去掉音频扩展名后匹配
-          for (final ext in textExtensions) {
-            if (fileName == '${audioNameWithoutExt.toLowerCase()}$ext') {
-              return entity.path;
-            }
+          if (SubtitleLibraryService.isSubtitleForAudio(fileName, trackTitle)) {
+            return entity.path;
           }
         }
       }
@@ -303,18 +279,14 @@ class LyricController extends StateNotifier<LyricState> {
 
   // 查找歌词文件
   dynamic _findLyricFile(AudioTrack track, List<dynamic> allFiles) {
-    // 获取音频文件名（去掉可能的扩展名）
+    // 获取音频文件名
     final trackTitle = track.title;
-    final audioNameWithoutExt = _removeAudioExtension(trackTitle);
-
-    // 文本文件扩展名列表
-    final textExtensions = ['.vtt', '.srt', '.txt', '.lrc'];
 
     // 递归搜索歌词文件
     dynamic searchInFiles(List<dynamic> files) {
       for (final file in files) {
         final fileType = file['type'] ?? '';
-        final fileName = (file['title'] ?? file['name'] ?? '').toLowerCase();
+        final fileName = file['title'] ?? file['name'] ?? '';
 
         // 如果是文件夹，递归搜索
         if (fileType == 'folder' && file['children'] != null) {
@@ -323,56 +295,15 @@ class LyricController extends StateNotifier<LyricState> {
           continue;
         }
 
-        // 检查是否是文本文件
-        final isTextFile = fileType == 'text' ||
-            textExtensions.any((ext) => fileName.endsWith(ext));
-
-        if (!isTextFile) continue;
-
-        // 检查文件名是否匹配
-        // 规则1: 完全匹配（音频文件名 + 文本扩展名）
-        for (final ext in textExtensions) {
-          if (fileName == '${trackTitle.toLowerCase()}$ext') {
-            print('[Lyric] 规则1匹配: track="${track.title}", lyric="$fileName"');
-            return file;
-          }
-        }
-
-        // 规则2: 去掉音频扩展名后匹配（音频文件名去后缀 + 文本扩展名）
-        for (final ext in textExtensions) {
-          if (fileName == '${audioNameWithoutExt.toLowerCase()}$ext') {
-            print('[Lyric] 规则2匹配: track="${track.title}", lyric="$fileName"');
-            return file;
-          }
+        if (SubtitleLibraryService.isSubtitleForAudio(fileName, trackTitle)) {
+          print('[Lyric] 找到匹配: track="${track.title}", lyric="$fileName"');
+          return file;
         }
       }
       return null;
     }
 
     return searchInFiles(allFiles);
-  }
-
-  // 移除音频文件扩展名
-  String _removeAudioExtension(String fileName) {
-    final audioExtensions = [
-      '.mp3',
-      '.wav',
-      '.flac',
-      '.m4a',
-      '.aac',
-      '.ogg',
-      '.opus',
-      '.wma',
-      '.mp4',
-    ];
-
-    final lowerName = fileName.toLowerCase();
-    for (final ext in audioExtensions) {
-      if (lowerName.endsWith(ext)) {
-        return fileName.substring(0, fileName.length - ext.length);
-      }
-    }
-    return fileName;
   }
 
   // 清空歌词
