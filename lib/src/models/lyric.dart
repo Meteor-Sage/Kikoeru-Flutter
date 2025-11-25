@@ -181,13 +181,19 @@ class LyricParser {
     final List<LyricLine> mergedLyrics = [];
 
     for (final line in lyrics) {
+      final isEmpty = line.text.trim().isEmpty;
+
       if (mergedLyrics.isEmpty) {
-        mergedLyrics.add(line);
+        // 第一行特殊处理：如果是长空行（>=3秒）也替换为音符
+        if (isEmpty) {
+          mergedLyrics.add(line.copyWith(text: '♪ - ♪'));
+        } else {
+          mergedLyrics.add(line);
+        }
         continue;
       }
 
       final lastLine = mergedLyrics.last;
-      final isEmpty = line.text.trim().isEmpty;
       final duration = line.endTime - line.startTime;
       final isShort = duration < const Duration(seconds: 3);
 
@@ -196,7 +202,12 @@ class LyricParser {
         mergedLyrics.removeLast();
         mergedLyrics.add(lastLine.copyWith(endTime: line.endTime));
       } else {
-        mergedLyrics.add(line);
+        // 保留的行：如果是空行（说明是长空行），替换为音符
+        if (isEmpty) {
+          mergedLyrics.add(line.copyWith(text: '♪ - ♪'));
+        } else {
+          mergedLyrics.add(line);
+        }
       }
     }
 

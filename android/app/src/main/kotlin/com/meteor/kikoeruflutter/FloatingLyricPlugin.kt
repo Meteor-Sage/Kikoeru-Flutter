@@ -36,7 +36,7 @@ class FloatingLyricPlugin(private val context: Context) : MethodCallHandler {
     override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
             "show" -> {
-                val text = call.argument<String>("text") ?: "♪ 暂无播放 ♪"
+                val text = call.argument<String>("text") ?: "♪ - ♪"
                 show(text, result)
             }
             "hide" -> {

@@ -66,7 +66,123 @@ class SubtitleLibraryService {
     final subtitleBaseName = removeAudioExtension(subtitleContentName);
 
     // 4. 比较基础名称
-    return audioBaseName == subtitleBaseName;
+    if (audioBaseName == subtitleBaseName) {
+      return true;
+    }
+
+    // 5. 尝试模糊匹配
+    // 5.1 归一化处理（去除括号内容、特殊字符等）
+    final normalizedAudio = _normalizeForMatching(audioBaseName);
+    final normalizedSubtitle = _normalizeForMatching(subtitleBaseName);
+
+    if (normalizedAudio.isEmpty || normalizedSubtitle.isEmpty) {
+      return false;
+    }
+
+    // 如果归一化后相等，直接匹配
+    if (normalizedAudio == normalizedSubtitle) {
+      return true;
+    }
+
+    // 5.2 计算相似度（Levenshtein距离）
+    final similarity =
+        _calculateSimilarity(normalizedAudio, normalizedSubtitle);
+
+    // 阈值设定：
+    // 对于短文件名（<10字符），要求更高相似度（0.9）
+    // 对于长文件名，允许一定容错（0.85）
+    final threshold = normalizedAudio.length < 10 ? 0.9 : 0.85;
+
+    return similarity >= threshold;
+  }
+
+  /// 归一化文件名用于匹配
+  /// 去除括号内容、特殊后缀、标点符号等
+  static String _normalizeForMatching(String fileName) {
+    var result = fileName;
+
+    // 1. 去除括号及其内容 (包括全角和半角)
+    // 例如: "Track1(SEなし)" -> "Track1"
+    result = result.replaceAll(RegExp(r'\（.*?\）'), ''); // 全角括号
+    result = result.replaceAll(RegExp(r'\(.*?\)'), ''); // 半角括号
+    result = result.replaceAll(RegExp(r'\[.*?\]'), ''); // 方括号
+    result = result.replaceAll(RegExp(r'【.*?】'), ''); // 实心方括号
+
+    // 2. 去除常见的无意义后缀
+    // 例如: "_SE无", "_NoSE"
+    final suffixesToRemove = [
+      '_se无',
+      '_seなし',
+      '_nose',
+      '_se無し',
+      '_SE无',
+      '_SEなし',
+      '_NOSE',
+      '_SE無し',
+      'se无',
+      'seなし',
+      'nose',
+      'se無し',
+      'SE无',
+      'SEなし',
+      'NOSE',
+      'SE無し',
+    ];
+
+    for (final suffix in suffixesToRemove) {
+      if (result.toLowerCase().endsWith(suffix)) {
+        result = result.substring(0, result.length - suffix.length);
+      }
+    }
+
+    // 3. 去除标点符号和特殊字符，只保留字母、数字和CJK字符
+    // 这一步可以解决 "5," vs "5" 的问题
+    result = result.replaceAll(
+        RegExp(r'[^\w\u4e00-\u9fa5\u3040-\u309f\u30a0-\u30ff]'), '');
+
+    return result.trim();
+  }
+
+  /// 计算两个字符串的相似度 (0.0 - 1.0)
+  /// 基于 Levenshtein Distance
+  static double _calculateSimilarity(String s1, String s2) {
+    if (s1 == s2) return 1.0;
+    if (s1.isEmpty || s2.isEmpty) return 0.0;
+
+    final distance = _levenshteinDistance(s1, s2);
+    final maxLength = s1.length > s2.length ? s1.length : s2.length;
+
+    return 1.0 - (distance / maxLength);
+  }
+
+  /// 计算 Levenshtein 编辑距离
+  static int _levenshteinDistance(String s1, String s2) {
+    if (s1 == s2) return 0;
+    if (s1.isEmpty) return s2.length;
+    if (s2.isEmpty) return s1.length;
+
+    List<int> v0 = List<int>.filled(s2.length + 1, 0);
+    List<int> v1 = List<int>.filled(s2.length + 1, 0);
+
+    for (int i = 0; i <= s2.length; i++) {
+      v0[i] = i;
+    }
+
+    for (int i = 0; i < s1.length; i++) {
+      v1[0] = i + 1;
+
+      for (int j = 0; j < s2.length; j++) {
+        int cost = (s1.codeUnitAt(i) == s2.codeUnitAt(j)) ? 0 : 1;
+        v1[j + 1] = [v1[j] + 1, v0[j + 1] + 1, v0[j] + cost]
+            .reduce((curr, next) => curr < next ? curr : next);
+      }
+
+      for (int j = 0; j <= s2.length; j++) {
+        v0[j] = v1[j];
+      }
+    }
+
+    return v1[s2.length];
   }
 
   /// 移除音频文件扩展名
