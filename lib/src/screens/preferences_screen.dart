@@ -146,16 +146,32 @@ class PreferencesScreen extends ConsumerWidget {
                                 child: const Text('取消'),
                               ),
                               TextButton(
-                                onPressed: () {
+                                onPressed: () async {
                                   Navigator.pop(context); // Close alert dialog
                                   Navigator.pop(
                                       context); // Close source selection dialog
-                                  Navigator.of(context).push(
+                                  await Navigator.of(context).push(
                                     MaterialPageRoute(
                                       builder: (context) =>
                                           const LLMSettingsScreen(),
                                     ),
                                   );
+
+                                  // Check if configured successfully
+                                  final newSettings =
+                                      ref.read(llmSettingsProvider);
+                                  if (newSettings.apiKey.isNotEmpty) {
+                                    ref
+                                        .read(
+                                            translationSourceProvider.notifier)
+                                        .updateSource(TranslationSource.llm);
+                                    if (context.mounted) {
+                                      SnackBarUtil.showSuccess(
+                                        context,
+                                        '已自动切换至: 大模型翻译',
+                                      );
+                                    }
+                                  }
                                 },
                                 child: const Text('去配置'),
                               ),

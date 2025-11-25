@@ -65,7 +65,7 @@ class FileIconUtils {
 
     if (type == 'folder') {
       return Icons.folder;
-    } else if (type == 'audio' || type == 'file') {
+    } else if (type == 'audio' || type == 'file' || _isAudioFile(title)) {
       if (_isVideoFile(title)) {
         return Icons.video_library;
       } else if (type == 'image' || _isImageFile(title)) {
@@ -88,7 +88,7 @@ class FileIconUtils {
 
     if (type == 'folder') {
       return Colors.amber;
-    } else if (type == 'audio' || type == 'file') {
+    } else if (type == 'audio' || type == 'file' || _isAudioFile(title)) {
       if (_isVideoFile(title)) {
         return Colors.purple;
       } else if (type == 'image' || _isImageFile(title)) {
@@ -113,7 +113,7 @@ class FileIconUtils {
       return Icons.folder;
     } else if (type == 'video' || _isVideoFile(title)) {
       return Icons.video_library;
-    } else if (type == 'audio') {
+    } else if (type == 'audio' || _isAudioFile(title)) {
       return Icons.audiotrack;
     } else if (type == 'image' || _isImageFile(title)) {
       return Icons.image;
@@ -135,7 +135,7 @@ class FileIconUtils {
       return Colors.amber;
     } else if (type == 'video' || _isVideoFile(title)) {
       return Colors.purple;
-    } else if (type == 'audio') {
+    } else if (type == 'audio' || _isAudioFile(title)) {
       return Colors.green;
     } else if (type == 'image' || _isImageFile(title)) {
       return Colors.blue;

@@ -274,9 +274,44 @@ class AudioFile extends Equatable {
   Map<String, dynamic> toJson() => _$AudioFileToJson(this);
 
   bool get isFolder => type == 'folder';
-  bool get isAudio => type == 'audio';
-  bool get isText => type == 'text';
-  bool get isImage => type == 'image';
+
+  bool get isAudio {
+    if (type == 'audio') return true;
+    final lowerTitle = title.toLowerCase();
+    return lowerTitle.endsWith('.mp3') ||
+        lowerTitle.endsWith('.wav') ||
+        lowerTitle.endsWith('.flac') ||
+        lowerTitle.endsWith('.m4a') ||
+        lowerTitle.endsWith('.aac') ||
+        lowerTitle.endsWith('.ogg') ||
+        lowerTitle.endsWith('.wma') ||
+        lowerTitle.endsWith('.opus') ||
+        lowerTitle.endsWith('.m4b');
+  }
+
+  bool get isText {
+    if (type == 'text') return true;
+    final lowerTitle = title.toLowerCase();
+    return lowerTitle.endsWith('.txt') ||
+        lowerTitle.endsWith('.vtt') ||
+        lowerTitle.endsWith('.srt') ||
+        lowerTitle.endsWith('.lrc') ||
+        lowerTitle.endsWith('.md') ||
+        lowerTitle.endsWith('.log') ||
+        lowerTitle.endsWith('.json') ||
+        lowerTitle.endsWith('.xml');
+  }
+
+  bool get isImage {
+    if (type == 'image') return true;
+    final lowerTitle = title.toLowerCase();
+    return lowerTitle.endsWith('.jpg') ||
+        lowerTitle.endsWith('.jpeg') ||
+        lowerTitle.endsWith('.png') ||
+        lowerTitle.endsWith('.gif') ||
+        lowerTitle.endsWith('.bmp') ||
+        lowerTitle.endsWith('.webp');
+  }
 
   @override
   List<Object?> get props =>

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_filex/open_filex.dart';
 
@@ -258,13 +259,11 @@ class _OfflineFileExplorerWidgetState
       final audioFiles = <String>[];
       void collectAudioFiles(List<dynamic> items) {
         for (final item in items) {
-          final type = _getProperty(item, 'type', defaultValue: '');
           final title = _getProperty(item, 'title', defaultValue: '');
 
           // 检查是否是音频文件（通过类型或文件名后缀）
           // 修复：wav等格式可能没有被正确标记为audio类型
-          if (type == 'audio' ||
-              FileIconUtils.inferFileType(title) == 'audio') {
+          if (item is Map<String, dynamic> && FileIconUtils.isAudioFile(item)) {
             if (title.isNotEmpty) {
               audioFiles.add(title);
             }
@@ -294,7 +293,7 @@ class _OfflineFileExplorerWidgetState
               if (SubtitleLibraryService.isSubtitleForAudio(
                   fileName, audioFile)) {
                 _audioWithLibrarySubtitles.add(audioFile);
-                break;
+                // 不要 break，因为一个字幕文件可能对应多个音频文件（如 mp3 和 wav 版本）
               }
             }
           }
@@ -313,8 +312,8 @@ class _OfflineFileExplorerWidgetState
     if (_localFiles.isEmpty) return;
 
     // 如果根目录本身包含音频文件，则不需要展开
-    final rootHasAudio = _localFiles
-        .any((item) => _getProperty(item, 'type', defaultValue: '') == 'audio');
+    final rootHasAudio = _localFiles.any((item) =>
+        item is Map<String, dynamic> && FileIconUtils.isAudioFile(item));
     if (rootHasAudio) {
       _mainFolderPath = '';
       return;
@@ -401,7 +400,7 @@ class _OfflineFileExplorerWidgetState
     int textCount = 0;
 
     for (final child in items) {
-      if (_getProperty(child, 'type', defaultValue: '') == 'audio') {
+      if (child is Map<String, dynamic> && FileIconUtils.isAudioFile(child)) {
         audioCount++;
 
         // 检查该音频是否在字幕库中有匹配的字幕
@@ -430,7 +429,7 @@ class _OfflineFileExplorerWidgetState
       int highestPriority = priorityOrder.length; // 初始化为最低优先级（越大越低优先级）
 
       for (final child in folderChildren) {
-        if (_getProperty(child, 'type', defaultValue: '') == 'audio') {
+        if (child is Map<String, dynamic> && FileIconUtils.isAudioFile(child)) {
           final fileName =
               _getProperty(child, 'title', defaultValue: '').toLowerCase();
           // 检查文件扩展名
@@ -1298,6 +1297,10 @@ class _OfflineFileExplorerWidgetState
               _handleFileTap(item, title, parentPath);
             }
           },
+          onLongPress: () {
+            Clipboard.setData(ClipboardData(text: title));
+            SnackBarUtil.showSuccess(context, '已复制名称: $title');
+          },
           child: Padding(
             padding: EdgeInsets.only(
               left: 8.0 + (level * 20.0),
@@ -1330,7 +1333,8 @@ class _OfflineFileExplorerWidgetState
                         size: 24,
                       ),
                       // 字幕库匹配标记（音频文件）
-                      if (type == 'audio' &&
+                      if (item is Map<String, dynamic> &&
+                          FileIconUtils.isAudioFile(item) &&
                           _audioWithLibrarySubtitles.contains(originalTitle))
                         Positioned(
                           left: 0,
@@ -1390,8 +1394,8 @@ class _OfflineFileExplorerWidgetState
                   ),
                 ),
                 // 操作按钮
-                if (type == 'audio' ||
-                    type == 'video' ||
+                if (FileIconUtils.isAudioFile(item) ||
+                    FileIconUtils.isVideoFile(item) ||
                     FileIconUtils.isImageFile(item) ||
                     FileIconUtils.isTextFile(item) ||
                     FileIconUtils.isPdfFile(item) ||
