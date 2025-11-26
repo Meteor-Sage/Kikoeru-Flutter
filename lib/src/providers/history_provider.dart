@@ -29,6 +29,16 @@ class HistoryNotifier extends StateNotifier<List<HistoryRecord>> {
   Future<void> addOrUpdate(Work work,
       {AudioTrack? track, int? positionMs}) async {
     final now = DateTime.now();
+    final audioService = AudioPlayerService.instance;
+
+    // Get playlist info if available and matching current work
+    int playlistIndex = 0;
+    int playlistTotal = 0;
+
+    if (audioService.currentTrack?.workId == work.id) {
+      playlistIndex = audioService.currentIndex;
+      playlistTotal = audioService.queue.length;
+    }
 
     // Find existing record
     final existingIndex = state.indexWhere((r) => r.work.id == work.id);
@@ -41,6 +51,10 @@ class HistoryNotifier extends StateNotifier<List<HistoryRecord>> {
         lastPlayedTime: now,
         lastTrack: track ?? existing.lastTrack,
         lastPositionMs: positionMs ?? existing.lastPositionMs,
+        playlistIndex:
+            playlistIndex > 0 ? playlistIndex : existing.playlistIndex,
+        playlistTotal:
+            playlistTotal > 0 ? playlistTotal : existing.playlistTotal,
       );
     } else {
       record = HistoryRecord(
@@ -48,6 +62,8 @@ class HistoryNotifier extends StateNotifier<List<HistoryRecord>> {
         lastPlayedTime: now,
         lastTrack: track,
         lastPositionMs: positionMs ?? 0,
+        playlistIndex: playlistIndex,
+        playlistTotal: playlistTotal,
       );
     }
 

@@ -109,6 +109,29 @@ class HistoryWorkCard extends ConsumerWidget {
                       ),
                     ),
                   ),
+                  // Play Button
+                  if (record.lastTrack != null)
+                    Positioned(
+                      right: 8,
+                      bottom: 8,
+                      child: Material(
+                        color: Theme.of(context).colorScheme.primary,
+                        shape: const CircleBorder(),
+                        elevation: 4,
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: () => _resumePlayback(context, ref),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Icon(
+                              Icons.play_arrow,
+                              size: 20,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -141,26 +164,39 @@ class HistoryWorkCard extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: Text(
-                            '${formatDuration(Duration(milliseconds: record.lastPositionMs))} / ${formatDuration(record.lastTrack!.duration ?? Duration.zero)}',
+                        Text(
+                          '${formatDuration(Duration(milliseconds: record.lastPositionMs))} / ${formatDuration(record.lastTrack!.duration ?? Duration.zero)}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                        if (record.playlistTotal > 0)
+                          Text(
+                            '${record.playlistIndex + 1} / ${record.playlistTotal}',
                             style: TextStyle(
                               fontSize: 10,
                               color: Theme.of(context).colorScheme.outline,
                             ),
                           ),
-                        ),
-                        SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: IconButton(
-                            padding: EdgeInsets.zero,
-                            icon: const Icon(Icons.play_arrow, size: 18),
-                            onPressed: () => _resumePlayback(context, ref),
-                          ),
-                        ),
                       ],
+                    ),
+                    const SizedBox(height: 6),
+                    LinearProgressIndicator(
+                      value: (record.lastTrack!.duration?.inMilliseconds ?? 1) >
+                              0
+                          ? (record.lastPositionMs /
+                                  record.lastTrack!.duration!.inMilliseconds)
+                              .clamp(0.0, 1.0)
+                          : 0.0,
+                      backgroundColor:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                      color: Theme.of(context).colorScheme.primary,
+                      minHeight: 3,
+                      borderRadius: BorderRadius.circular(1.5),
                     ),
                   ] else
                     Text(

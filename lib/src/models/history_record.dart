@@ -8,12 +8,16 @@ class HistoryRecord extends Equatable {
   final DateTime lastPlayedTime;
   final AudioTrack? lastTrack;
   final int lastPositionMs;
+  final int playlistIndex;
+  final int playlistTotal;
 
   const HistoryRecord({
     required this.work,
     required this.lastPlayedTime,
     this.lastTrack,
     this.lastPositionMs = 0,
+    this.playlistIndex = 0,
+    this.playlistTotal = 0,
   });
 
   HistoryRecord copyWith({
@@ -21,12 +25,16 @@ class HistoryRecord extends Equatable {
     DateTime? lastPlayedTime,
     AudioTrack? lastTrack,
     int? lastPositionMs,
+    int? playlistIndex,
+    int? playlistTotal,
   }) {
     return HistoryRecord(
       work: work ?? this.work,
       lastPlayedTime: lastPlayedTime ?? this.lastPlayedTime,
       lastTrack: lastTrack ?? this.lastTrack,
       lastPositionMs: lastPositionMs ?? this.lastPositionMs,
+      playlistIndex: playlistIndex ?? this.playlistIndex,
+      playlistTotal: playlistTotal ?? this.playlistTotal,
     );
   }
 
@@ -38,6 +46,8 @@ class HistoryRecord extends Equatable {
       'last_track_json':
           lastTrack != null ? jsonEncode(lastTrack!.toJson()) : null,
       'last_position_ms': lastPositionMs,
+      'playlist_index': playlistIndex,
+      'playlist_total': playlistTotal,
     };
   }
 
@@ -50,6 +60,8 @@ class HistoryRecord extends Equatable {
           ? AudioTrack.fromJson(jsonDecode(map['last_track_json']))
           : null,
       lastPositionMs: map['last_position_ms'] ?? 0,
+      playlistIndex: map['playlist_index'] ?? 0,
+      playlistTotal: map['playlist_total'] ?? 0,
     );
   }
 
@@ -59,5 +71,7 @@ class HistoryRecord extends Equatable {
         lastPlayedTime,
         lastTrack,
         lastPositionMs,
+        playlistIndex,
+        playlistTotal,
       ];
 }
