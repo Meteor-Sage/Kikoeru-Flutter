@@ -91,13 +91,6 @@ jobs:
         
       - name: Build Windows Release
         run: flutter build windows --release
-        
-      - name: Create Zip
-        uses: thedoctor0/zip-release@0.7.6
-        with:
-          type: 'zip'
-          filename: 'KikoFlu-windows.zip'
-          directory: 'build/windows/x64/runner/Release'
           
       - name: Create MSIX
         run: flutter pub run msix:create --install-certificate false
@@ -105,6 +98,13 @@ jobs:
       - name: Rename MSIX
         run: |
           Get-ChildItem -Path build/windows -Filter *.msix -Recurse | Rename-Item -NewName "KikoFlu-windows.msix"
+      
+      - name: Create Zip
+        uses: thedoctor0/zip-release@0.7.6
+        with:
+          type: 'zip'
+          filename: 'KikoFlu-windows.zip'
+          directory: 'build/windows/x64/runner/Release'
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
