@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -94,6 +95,15 @@ class AudioPlayerController extends StateNotifier<AudioPlayerState> {
         );
       },
     );
+
+    if (Platform.isAndroid) {
+      _ref.listen<bool>(
+        androidExclusiveModeProvider,
+        (previous, next) {
+          _service.updateAndroidExclusiveMode(next);
+        },
+      );
+    }
   }
 
   Future<void> initialize() async {
@@ -101,6 +111,11 @@ class AudioPlayerController extends StateNotifier<AudioPlayerState> {
     await Permission.notification.request();
 
     await _service.initialize();
+
+    if (Platform.isAndroid) {
+      final exclusiveEnabled = _ref.read(androidExclusiveModeProvider);
+      await _service.updateAndroidExclusiveMode(exclusiveEnabled);
+    }
 
     // 初始化时应用当前的防社死设置
     final privacySettings = _ref.read(privacyModeSettingsProvider);

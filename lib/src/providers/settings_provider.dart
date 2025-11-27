@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/sort_options.dart';
@@ -67,6 +69,49 @@ class SubtitleLibraryPriorityNotifier
 final subtitleLibraryPriorityProvider = StateNotifierProvider<
     SubtitleLibraryPriorityNotifier, SubtitleLibraryPriority>((ref) {
   return SubtitleLibraryPriorityNotifier();
+});
+
+/// 安卓 DAC 独占偏好
+class AndroidExclusiveModeNotifier extends StateNotifier<bool> {
+  static const String _preferenceKey = 'android_dac_exclusive_enabled';
+
+  AndroidExclusiveModeNotifier() : super(false) {
+    _loadPreference();
+  }
+
+  Future<void> _loadPreference() async {
+    if (!Platform.isAndroid) {
+      state = false;
+      return;
+    }
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      state = prefs.getBool(_preferenceKey) ?? false;
+    } catch (_) {
+      state = false;
+    }
+  }
+
+  Future<void> setEnabled(bool enabled) async {
+    if (!Platform.isAndroid) {
+      state = false;
+      return;
+    }
+
+    state = enabled;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_preferenceKey, enabled);
+    } catch (_) {
+      // ignore write failure
+    }
+  }
+}
+
+final androidExclusiveModeProvider =
+    StateNotifierProvider<AndroidExclusiveModeNotifier, bool>((ref) {
+  return AndroidExclusiveModeNotifier();
 });
 
 /// 音频格式类型

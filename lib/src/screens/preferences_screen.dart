@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -224,6 +226,7 @@ class PreferencesScreen extends ConsumerWidget {
     final priority = ref.watch(subtitleLibraryPriorityProvider);
     final defaultSort = ref.watch(defaultSortProvider);
     final translationSource = ref.watch(translationSourceProvider);
+    final androidExclusiveEnabled = ref.watch(androidExclusiveModeProvider);
 
     return Scaffold(
       appBar: const ScrollableAppBar(
@@ -300,6 +303,29 @@ class PreferencesScreen extends ConsumerWidget {
                     );
                   },
                 ),
+                if (Platform.isAndroid) ...[
+                  Divider(
+                      color: Theme.of(context).colorScheme.outlineVariant),
+                  SwitchListTile(
+                    secondary: Icon(Icons.headphones,
+                        color: Theme.of(context).colorScheme.primary),
+                    title: const Text('安卓 DAC 独占模式'),
+                    subtitle: Text(androidExclusiveEnabled
+                        ? '已启用 - 播放时尝试独占系统音频输出'
+                        : '关闭 - 将使用系统默认音频通道'),
+                    value: androidExclusiveEnabled,
+                    onChanged: (value) async {
+                      await ref
+                          .read(androidExclusiveModeProvider.notifier)
+                          .setEnabled(value);
+                      if (!context.mounted) return;
+                      SnackBarUtil.showInfo(
+                        context,
+                        value ? '已开启 DAC 独占（仅部分设备支持）' : '已关闭 DAC 独占',
+                      );
+                    },
+                  ),
+                ],
               ],
             ),
           ),
