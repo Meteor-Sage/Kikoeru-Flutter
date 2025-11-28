@@ -362,5 +362,16 @@ final worksProvider = StateNotifierProvider<WorksNotifier, WorksState>((ref) {
     }
   });
 
+  // 监听用户切换，自动刷新作品列表
+  ref.listen(currentUserProvider, (previous, next) {
+    // 只有当用户真正变化时才刷新（用户名或服务器地址不同）
+    final prevUser = previous;
+    final nextUser = next;
+    if (prevUser?.name != nextUser?.name || prevUser?.host != nextUser?.host) {
+      print('[WorksProvider] User changed, refreshing works list');
+      notifier.refresh();
+    }
+  });
+
   return notifier;
 });

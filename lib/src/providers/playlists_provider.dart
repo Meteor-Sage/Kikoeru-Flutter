@@ -179,5 +179,15 @@ final playlistsProvider =
     }
   });
 
+  // 监听用户切换，自动刷新播放列表
+  ref.listen(currentUserProvider, (previous, next) {
+    final prevUser = previous;
+    final nextUser = next;
+    if (prevUser?.name != nextUser?.name || prevUser?.host != nextUser?.host) {
+      print('[PlaylistsProvider] User changed, refreshing playlists');
+      notifier.refresh();
+    }
+  });
+
   return notifier;
 });

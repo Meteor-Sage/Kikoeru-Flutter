@@ -55,6 +55,13 @@ class AuthState extends Equatable {
       [currentUser, token, host, isLoading, error, isLoggedIn];
 }
 
+
+/// 检查是否为asmr.one的官方服务器，要求地址包含 api.asmr 
+bool _isOfficialServer(String? host) {
+  if (host == null || host.isEmpty) return false;
+  return host.contains('api.asmr');
+}
+
 // Auth notifier
 class AuthNotifier extends StateNotifier<AuthState> {
   final KikoeruApiService _apiService;
@@ -257,8 +264,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       final user = User.fromJson(userInfo);
 
-      // Only proceed if user is actually logged in
-      if (!user.loggedIn) {
+      // For official servers, verify the loggedIn field to ensure proper authentication
+      // For self-hosted servers, skip this check as they may not return this field
+      if (_isOfficialServer(normalizedHost) && !user.loggedIn) {
         throw Exception('Login failed: User not logged in');
       }
 
@@ -385,8 +393,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       final user = User.fromJson(userInfo);
 
-      // Only proceed if user is actually logged in
-      if (!user.loggedIn) {
+      // For official servers, verify the loggedIn field to ensure proper authentication
+      // For self-hosted servers, skip this check as they may not return this field
+      if (_isOfficialServer(normalizedHost) && !user.loggedIn) {
         throw Exception('Registration failed: User not logged in');
       }
 
@@ -464,7 +473,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final userInfo = await _apiService.getUserInfo();
       final user = User.fromJson(userInfo);
 
-      if (!user.loggedIn) {
+      // For official servers, verify the loggedIn field
+      // For self-hosted servers, skip this check as they may not return this field
+      if (_isOfficialServer(state.host) && !user.loggedIn) {
         throw Exception('User not logged in');
       }
 

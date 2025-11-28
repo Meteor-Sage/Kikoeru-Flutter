@@ -231,5 +231,15 @@ final myReviewsProvider =
     }
   });
 
+  // 监听用户切换，自动刷新我的评价/收藏列表
+  ref.listen(currentUserProvider, (previous, next) {
+    final prevUser = previous;
+    final nextUser = next;
+    if (prevUser?.name != nextUser?.name || prevUser?.host != nextUser?.host) {
+      print('[MyReviewsProvider] User changed, refreshing my reviews');
+      notifier.refresh();
+    }
+  });
+
   return notifier;
 });
