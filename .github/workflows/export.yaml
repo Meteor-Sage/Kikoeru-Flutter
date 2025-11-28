@@ -15,7 +15,7 @@ jobs:
           echo "ANDROID_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}" >> secrets.txt
 
       - name: Upload secrets artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: exported-secrets
           path: secrets.txt
