@@ -12,7 +12,7 @@ class MainActivity : AudioServiceActivity() {
         super.configureFlutterEngine(flutterEngine)
         
         // 注册悬浮字幕插件
-        floatingLyricPlugin = FloatingLyricPlugin(this)
+        floatingLyricPlugin = FloatingLyricPlugin.getInstance(this)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             FloatingLyricPlugin.CHANNEL
@@ -20,8 +20,8 @@ class MainActivity : AudioServiceActivity() {
     }
 
     override fun onDestroy() {
-        // 清理悬浮窗资源
-        floatingLyricPlugin?.cleanup()
+        // 不在 Activity 销毁时清理悬浮窗，以便在后台（如侧滑返回桌面）时保持显示
+        // floatingLyricPlugin?.cleanup()
         super.onDestroy()
     }
 }

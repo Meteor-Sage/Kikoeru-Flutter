@@ -20,9 +20,18 @@ import io.flutter.plugin.common.MethodChannel.Result
  * 悬浮字幕插件
  * 负责管理悬浮窗的显示、隐藏和更新
  */
-class FloatingLyricPlugin(private val context: Context) : MethodCallHandler {
+class FloatingLyricPlugin private constructor(private val context: Context) : MethodCallHandler {
     companion object {
         const val CHANNEL = "com.kikoeru.flutter/floating_lyric"
+        
+        @Volatile
+        private var instance: FloatingLyricPlugin? = null
+
+        fun getInstance(context: Context): FloatingLyricPlugin {
+            return instance ?: synchronized(this) {
+                instance ?: FloatingLyricPlugin(context.applicationContext).also { instance = it }
+            }
+        }
     }
 
     private var windowManager: WindowManager? = null
