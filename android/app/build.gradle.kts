@@ -59,6 +59,13 @@ android {
                 signingConfigs.getByName("debug")
             }
         }
+        debug {
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
+        }
     }
 }
 

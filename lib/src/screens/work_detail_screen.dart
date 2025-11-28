@@ -678,8 +678,7 @@ class _WorkDetailScreenState extends ConsumerState<WorkDetailScreen> {
                       image: _hdImageProvider!,
                       fit: BoxFit.contain,
                       errorBuilder: (context, error, stackTrace) {
-                        return const SizedBox
-                            .shrink(); // 出错时不显示，保持底层缓存图
+                        return const SizedBox.shrink(); // 出错时不显示，保持底层缓存图
                       },
                     ),
                   // 字幕标签 - 浮动在右下角

@@ -75,20 +75,27 @@ class HistoryWorkCard extends ConsumerWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  PrivacyBlurCover(
-                    child: CachedNetworkImage(
-                      imageUrl: work.getCoverImageUrl(host, token: token),
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: Colors.grey[200],
-                        child: const Center(
-                            child: Icon(Icons.image, color: Colors.grey)),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        color: Colors.grey[200],
-                        child: const Center(
-                            child:
-                                Icon(Icons.broken_image, color: Colors.grey)),
+                  Hero(
+                    tag: 'work_cover_${work.id}',
+                    child: Material(
+                      color: Colors.transparent,
+                      child: PrivacyBlurCover(
+                        child: CachedNetworkImage(
+                          imageUrl: work.getCoverImageUrl(host, token: token),
+                          cacheKey: 'work_cover_${work.id}',
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            color: Colors.grey[200],
+                            child: const Center(
+                                child: Icon(Icons.image, color: Colors.grey)),
+                          ),
+                          errorWidget: (context, url, error) => Container(
+                            color: Colors.grey[200],
+                            child: const Center(
+                                child: Icon(Icons.broken_image,
+                                    color: Colors.grey)),
+                          ),
+                        ),
                       ),
                     ),
                   ),
