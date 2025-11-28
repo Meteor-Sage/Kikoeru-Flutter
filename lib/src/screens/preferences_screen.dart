@@ -300,17 +300,20 @@ class PreferencesScreen extends ConsumerWidget {
                     );
                   },
                 ),
-                // 仅在 Android 和 Windows 平台上显示音频直通设置
+                // 仅在 Android, Windows 和 macOS 平台上显示音频直通设置
                 if (Theme.of(context).platform == TargetPlatform.android ||
-                    Theme.of(context).platform == TargetPlatform.windows) ...[
+                    Theme.of(context).platform == TargetPlatform.windows ||
+                    Theme.of(context).platform == TargetPlatform.macOS) ...[
                   Divider(color: Theme.of(context).colorScheme.outlineVariant),
                   SwitchListTile(
                     secondary: Icon(Icons.surround_sound,
                         color: Theme.of(context).colorScheme.primary),
-                    title: const Text('音频直通/独占模式'),
+                    title: const Text('音频直通'),
                     subtitle: Text(
-                      Theme.of(context).platform == TargetPlatform.windows
-                          ? '使用 WASAPI 独占模式输出音频。需要重启应用生效。'
+                      (Theme.of(context).platform == TargetPlatform.windows ||
+                              Theme.of(context).platform ==
+                                  TargetPlatform.macOS)
+                          ? '使用音频直通输出音频。需要重启应用生效。'
                           : '允许输出原始比特流 (AC3/DTS) 到外部解码器。可能会独占音频设备。',
                       style: const TextStyle(fontSize: 12),
                     ),
@@ -320,8 +323,10 @@ class PreferencesScreen extends ConsumerWidget {
                       SnackBarUtil.showSuccess(
                         context,
                         value
-                            ? (Theme.of(context).platform ==
-                                    TargetPlatform.windows
+                            ? ((Theme.of(context).platform ==
+                                        TargetPlatform.windows ||
+                                    Theme.of(context).platform ==
+                                        TargetPlatform.macOS)
                                 ? '已开启独占模式 (重启生效)'
                                 : '已开启音频直通模式')
                             : '已关闭音频直通模式',

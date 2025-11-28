@@ -30,48 +30,76 @@ import 'src/providers/update_provider.dart';
 import 'src/utils/global_keys.dart';
 
 void _setEnv(String key, String value) {
-  if (!Platform.isWindows) return;
-  final keyNative = key.toNativeUtf16();
-  final valueNative = value.toNativeUtf16();
-  final SetEnvironmentVariable = ffi.DynamicLibrary.open('kernel32.dll')
-      .lookupFunction<
-          ffi.Int32 Function(ffi.Pointer<Utf16>, ffi.Pointer<Utf16>),
-          int Function(ffi.Pointer<Utf16>,
-              ffi.Pointer<Utf16>)>('SetEnvironmentVariableW');
-  SetEnvironmentVariable(keyNative, valueNative);
-  calloc.free(keyNative);
-  calloc.free(valueNative);
+  if (Platform.isWindows) {
+    final keyNative = key.toNativeUtf16();
+    final valueNative = value.toNativeUtf16();
+    final SetEnvironmentVariable = ffi.DynamicLibrary.open('kernel32.dll')
+        .lookupFunction<
+            ffi.Int32 Function(ffi.Pointer<Utf16>, ffi.Pointer<Utf16>),
+            int Function(ffi.Pointer<Utf16>,
+                ffi.Pointer<Utf16>)>('SetEnvironmentVariableW');
+    SetEnvironmentVariable(keyNative, valueNative);
+    calloc.free(keyNative);
+    calloc.free(valueNative);
+  } else if (Platform.isMacOS) {
+    final keyNative = key.toNativeUtf8();
+    final valueNative = value.toNativeUtf8();
+    final setenv = ffi.DynamicLibrary.process().lookupFunction<
+        ffi.Int32 Function(ffi.Pointer<Utf8>, ffi.Pointer<Utf8>, ffi.Int32),
+        int Function(ffi.Pointer<Utf8>, ffi.Pointer<Utf8>, int)>('setenv');
+    setenv(keyNative, valueNative, 1);
+    calloc.free(keyNative);
+    calloc.free(valueNative);
+  }
 }
 
 Future<void> _configureMpv() async {
-  if (!Platform.isWindows) return;
+  if (!Platform.isWindows && !Platform.isMacOS) return;
 
   try {
     final prefs = await SharedPreferences.getInstance();
     final passthrough = prefs.getBool('audio_passthrough_enabled') ?? false;
 
-    final exePath = Platform.resolvedExecutable;
-    final exeDir = p.dirname(exePath);
-    final configDir = Directory(p.join(exeDir, 'portable_config'));
+    Directory configDir;
+    if (Platform.isWindows) {
+      final exePath = Platform.resolvedExecutable;
+      final exeDir = p.dirname(exePath);
+      configDir = Directory(p.join(exeDir, 'portable_config'));
+    } else {
+      final appSupportDir = await getApplicationSupportDirectory();
+      configDir = Directory(p.join(appSupportDir.path, 'mpv_config'));
+    }
 
     if (!await configDir.exists()) {
-      await configDir.create();
+      await configDir.create(recursive: true);
     }
 
     final configFile = File(p.join(configDir.path, 'mpv.conf'));
 
     // Force set MPV_HOME to ensure config is read
     _setEnv('MPV_HOME', configDir.path);
-    print('[Audio] Set MPV_HOME to: \${configDir.path}');
+    print('[Audio] Set MPV_HOME to: ${configDir.path}');
 
     if (passthrough) {
-      const configContent = '''
+      String configContent;
+      if (Platform.isWindows) {
+        configContent = '''
 ao=wasapi
 audio-exclusive=yes
 audio-spdif=ac3,dts,eac3
 log-file=mpv_debug.log
 msg-level=all=v
 ''';
+      } else {
+        configContent = '''
+ao=coreaudio
+audio-exclusive=yes
+audio-spdif=ac3,dts,eac3
+log-file=${p.join(configDir.path, 'mpv_debug.log')}
+msg-level=all=v
+''';
+      }
+
       await configFile.writeAsString(configContent);
       print('[Audio] Updated mpv.conf: Exclusive Mode ENABLED (Forced)');
     } else {
@@ -81,7 +109,7 @@ msg-level=all=v
       }
     }
   } catch (e) {
-    print('[Audio] Error configuring mpv: \$e');
+    print('[Audio] Error configuring mpv: $e');
   }
 }
 
