@@ -53,7 +53,8 @@ class User extends Equatable {
 
     return User(
       name: userJson['name'] as String? ?? '',
-      loggedIn: userJson['loggedIn'] as bool? ?? false,
+      loggedIn:
+          (userJson['loggedIn'] as bool?) ?? (json['auth'] as bool?) ?? false,
       group: userJson['group'] as String?,
       email: userJson['email'] as String?,
       recommenderUuid: userJson['recommenderUuid'] as String?,

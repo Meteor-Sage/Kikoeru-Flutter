@@ -337,10 +337,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
 
       final trimmedHost = host.trim();
-      final baseUrl = (trimmedHost.startsWith('http://') ||
-              trimmedHost.startsWith('https://'))
-          ? trimmedHost
-          : 'https://$normalized';
+      String baseUrl;
+      if (trimmedHost.startsWith('http://') ||
+          trimmedHost.startsWith('https://')) {
+        baseUrl = trimmedHost;
+      } else {
+        if (normalized.contains('localhost') ||
+            normalized.startsWith('127.0.0.1') ||
+            normalized.startsWith('192.168.')) {
+          baseUrl = 'http://$normalized';
+        } else {
+          baseUrl = 'https://$normalized';
+        }
+      }
 
       final response = await dio.get(
         '$baseUrl/api/health',
