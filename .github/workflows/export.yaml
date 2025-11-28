@@ -1,0 +1,21 @@
+name: Export GitHub Secrets
+
+on:
+  workflow_dispatch: # 手动触发
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create secrets file
+        run: |
+          echo "ANDROID_KEYSTORE_BASE64=${{ secrets.ANDROID_KEYSTORE_BASE64 }}" >> secrets.txt
+          echo "ANDROID_KEYSTORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" >> secrets.txt
+          echo "ANDROID_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}" >> secrets.txt
+          echo "ANDROID_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}" >> secrets.txt
+
+      - name: Upload secrets artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: exported-secrets
+          path: secrets.txt
