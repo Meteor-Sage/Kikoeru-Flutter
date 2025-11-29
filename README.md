@@ -112,7 +112,7 @@ flutter pub run msix:create
 
 ## 相关
 - [asmr.one](https://www.asmr.one) - 提供在线服务
-- [Kikoeru](https://github.com/kikoeru-project) - 提供后端服务
+- [Kikoeru](https://github.com/Number178/kikoeru-express) - 提供后端服务
 ---
 
 ## 联系方式

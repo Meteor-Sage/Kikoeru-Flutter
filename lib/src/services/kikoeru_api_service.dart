@@ -1096,13 +1096,15 @@ class KikoeruApiService {
     String? reviewText,
   }) async {
     try {
-      final data = <String, dynamic>{};
+      final data = <String, dynamic>{
+        'work_id': workId,
+      };
       if (progress != null) data['progress'] = progress;
       if (rating != null) data['rating'] = rating;
-      if (reviewText != null) data['text'] = reviewText;
+      if (reviewText != null) data['review_text'] = reviewText;
 
       final response = await _dio.put(
-        '/api/review/$workId',
+        '/api/review',
         data: data,
       );
 
@@ -1155,7 +1157,10 @@ class KikoeruApiService {
 
   Future<void> _deleteReviewOfficial(int workId) async {
     try {
-      await _dio.delete('/api/review/$workId');
+      await _dio.delete(
+        '/api/review',
+        queryParameters: {'work_id': workId},
+      );
       await CacheService.invalidateWorkDetailCache(workId);
     } catch (e) {
       throw KikoeruApiException('Failed to delete review', e);
