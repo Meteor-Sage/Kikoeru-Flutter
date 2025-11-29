@@ -3,11 +3,12 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:convert';
 import '../models/work.dart';
+import '../utils/server_utils.dart';
 import 'cache_service.dart';
 
 class KikoeruApiService {
-  static const String remoteHost = 'https://api.asmr-200.com';
-  static const String localHost = 'localhost:8888';
+  static const String remoteHost = ServerUtils.defaultRemoteHost;
+  static const String localHost = ServerUtils.defaultLocalHost;
 
   late Dio _dio;
   String? _token;
@@ -146,13 +147,7 @@ class KikoeruApiService {
   }
 
   // Helper to check if we are using the official server
-  bool get _isOfficialServer {
-    if (_host == null) return true;
-    return _host!.contains('api.asmr-200.com') ||
-        _host!.contains('api.asmr.one') ||
-        _host!.contains('api.asmr-100.com') ||
-        _host!.contains('api.asmr-300.com');
-  }
+  bool get _isOfficialServer => ServerUtils.isOfficialServer(_host);
 
   // Authentication APIs
   Future<Map<String, dynamic>> login(

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/auth_provider.dart';
 import '../services/kikoeru_api_service.dart';
+import '../utils/server_utils.dart';
 import '../utils/snackbar_util.dart';
 import '../widgets/scrollable_appbar.dart';
 import 'main_screen.dart';
@@ -250,12 +251,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     }
 
-    const preferredHosts = [
-      'api.asmr-200.com',
-      'api.asmr.one',
-      'api.asmr-100.com',
-      'api.asmr-300.com',
-    ];
+    const preferredHosts = ServerUtils.preferredHosts;
 
     for (final host in preferredHosts) {
       addOption(host);

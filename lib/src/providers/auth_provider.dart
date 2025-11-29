@@ -8,6 +8,7 @@ import '../models/account.dart';
 import '../services/kikoeru_api_service.dart';
 import '../services/storage_service.dart';
 import '../services/account_database.dart';
+import '../utils/server_utils.dart';
 
 // Kikoeru API Service Provider
 final kikoeruApiServiceProvider = Provider<KikoeruApiService>((ref) {
@@ -56,11 +57,7 @@ class AuthState extends Equatable {
 }
 
 
-/// 检查是否为asmr.one的官方服务器，要求地址包含 api.asmr 
-bool _isOfficialServer(String? host) {
-  if (host == null || host.isEmpty) return false;
-  return host.contains('api.asmr');
-}
+
 
 // Auth notifier
 class AuthNotifier extends StateNotifier<AuthState> {
@@ -266,7 +263,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       // For official servers, verify the loggedIn field to ensure proper authentication
       // For self-hosted servers, skip this check as they may not return this field
-      if (_isOfficialServer(normalizedHost) && !user.loggedIn) {
+      if (ServerUtils.isOfficialServer(normalizedHost) && !user.loggedIn) {
         throw Exception('Login failed: User not logged in');
       }
 
@@ -395,7 +392,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       // For official servers, verify the loggedIn field to ensure proper authentication
       // For self-hosted servers, skip this check as they may not return this field
-      if (_isOfficialServer(normalizedHost) && !user.loggedIn) {
+      if (ServerUtils.isOfficialServer(normalizedHost) && !user.loggedIn) {
         throw Exception('Registration failed: User not logged in');
       }
 
@@ -475,7 +472,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       // For official servers, verify the loggedIn field
       // For self-hosted servers, skip this check as they may not return this field
-      if (_isOfficialServer(state.host) && !user.loggedIn) {
+      if (ServerUtils.isOfficialServer(state.host) && !user.loggedIn) {
         throw Exception('User not logged in');
       }
 
