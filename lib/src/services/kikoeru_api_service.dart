@@ -1059,22 +1059,34 @@ class KikoeruApiService {
     int? rating,
     String? reviewText,
   }) async {
+    print(
+        '[API] 更新评论状态: workId=$workId, progress=$progress, rating=$rating, reviewText=${reviewText != null ? "exists" : "null"}');
     try {
       final data = <String, dynamic>{
         'work_id': workId,
       };
-      if (progress != null) {data['progress'] = progress;}
-      else {data['starOnly'] = true;}
-      if (rating != null) {data['rating'] = rating;}
-      else {data['progressOnly'] = true;}
+      final queryParams = <String, dynamic>{};
+
+      if (progress != null) {
+        data['progress'] = progress;
+      } else {
+        queryParams['starOnly'] = true;
+      }
+      if (rating != null) {
+        data['rating'] = rating;
+      } else {
+        queryParams['starOnly'] = false;
+        queryParams['progressOnly'] = true;
+      }
       if (reviewText != null) data['review_text'] = reviewText;
       if ((progress != null && rating != null) || reviewText != null) {
-        data['starOnly'] = false;
+        queryParams['starOnly'] = false;
       }
 
       final response = await _dio.put(
         '/api/review',
         data: data,
+        queryParameters: queryParams,
       );
 
       // 更新成功后清除该作品的详情缓存，确保下次获取最新状态
